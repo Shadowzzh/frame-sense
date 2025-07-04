@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import type { FrameSenseOptions } from "./config.js";
@@ -6,11 +6,31 @@ import { IMAGE_EXTENSIONS } from "./constants.js";
 import { AI_PROMPTS } from "./prompts.js";
 
 /**
+ * 统计信息接口
+ */
+export interface AnalysisStats {
+  /** 文件总数 */
+  totalFiles: number;
+  /** 文件总大小（字节） */
+  totalSize: number;
+  /** 预估 token 数 */
+  estimatedTokens: number;
+  /** 发送数据大小（字节） */
+  sentDataSize: number;
+}
+
+/**
  * AI 分析器
  */
 export class AIAnalyzer {
   private genAI: GoogleGenAI;
   private options: FrameSenseOptions;
+  private stats: AnalysisStats = {
+    totalFiles: 0,
+    totalSize: 0,
+    estimatedTokens: 0,
+    sentDataSize: 0,
+  };
 
   constructor(options: FrameSenseOptions) {
     this.options = options;
@@ -27,12 +47,85 @@ export class AIAnalyzer {
   }
 
   /**
+   * 获取统计信息
+   */
+  getStats(): AnalysisStats {
+    return { ...this.stats };
+  }
+
+  /**
+   * 重置统计信息
+   */
+  resetStats(): void {
+    this.stats = {
+      totalFiles: 0,
+      totalSize: 0,
+      estimatedTokens: 0,
+      sentDataSize: 0,
+    };
+  }
+
+  /**
+   * 计算文件统计信息
+   * @param filePaths 文件路径数组
+   */
+  private calculateFileStats(filePaths: string[]): void {
+    let totalSize = 0;
+
+    for (const filePath of filePaths) {
+      if (existsSync(filePath)) {
+        const stats = statSync(filePath);
+        totalSize += stats.size;
+      }
+    }
+
+    this.stats.totalFiles = filePaths.length;
+    this.stats.totalSize = totalSize;
+  }
+
+  /**
+   * 估算 token 数量
+   * @param base64Data base64 编码的数据
+   * @param text 文本内容
+   */
+  private estimateTokens(base64Data: string[], text: string): number {
+    // 文本 token 估算 (1 token ≈ 4 字符)
+    const textTokens = Math.ceil(text.length / 4);
+
+    // 图片 token 估算 (每张图片大约 258 tokens)
+    const imageTokens = base64Data.length * 258;
+
+    return textTokens + imageTokens;
+  }
+
+  /**
+   * 计算发送数据大小
+   * @param base64Data base64 编码的数据数组
+   * @param text 文本内容
+   */
+  private calculateSentDataSize(base64Data: string[], text: string): number {
+    // 文本大小 (UTF-8 编码)
+    const textSize = Buffer.byteLength(text, "utf8");
+
+    // base64 数据大小
+    const base64Size = base64Data.reduce(
+      (total, data) => total + data.length,
+      0,
+    );
+
+    return textSize + base64Size;
+  }
+
+  /**
    * 分析帧（用于视频）
    * @param framePaths 帧路径
    * @returns 分析结果
    */
   async analyzeFrames(framePaths: string[]): Promise<string> {
     try {
+      // 计算文件统计信息
+      this.calculateFileStats(framePaths);
+
       const images = await Promise.all(
         framePaths.map(async (path) => {
           const optimizedBuffer = await this.optimizeImage(path);
@@ -45,9 +138,19 @@ export class AIAnalyzer {
         }),
       );
 
+      const base64Data = images.map((img) => img.inlineData.data);
+      const promptText = AI_PROMPTS.VIDEO_ANALYSIS;
+
+      // 计算 token 和发送数据大小
+      this.stats.estimatedTokens = this.estimateTokens(base64Data, promptText);
+      this.stats.sentDataSize = this.calculateSentDataSize(
+        base64Data,
+        promptText,
+      );
+
       const contents = [
         {
-          parts: [{ text: AI_PROMPTS.VIDEO_ANALYSIS }],
+          parts: [{ text: promptText }],
           role: "user",
         },
         ...images.map((img) => ({
@@ -107,6 +210,9 @@ export class AIAnalyzer {
         throw new Error(`不支持的图片格式: ${unsupportedFiles.join(", ")}`);
       }
 
+      // 计算文件统计信息
+      this.calculateFileStats(imagePaths);
+
       // 使用 Sharp 优化图片并转换为 base64 格式
       const images = await Promise.all(
         imagePaths.map(async (path) => {
@@ -121,9 +227,19 @@ export class AIAnalyzer {
         }),
       );
 
+      const base64Data = images.map((img) => img.inlineData.data);
+      const promptText = AI_PROMPTS.IMAGE_ANALYSIS;
+
+      // 计算 token 和发送数据大小
+      this.stats.estimatedTokens = this.estimateTokens(base64Data, promptText);
+      this.stats.sentDataSize = this.calculateSentDataSize(
+        base64Data,
+        promptText,
+      );
+
       const contents = [
         {
-          parts: [{ text: AI_PROMPTS.IMAGE_ANALYSIS }],
+          parts: [{ text: promptText }],
           role: "user",
         },
         ...images.map((img) => ({

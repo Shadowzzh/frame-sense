@@ -56,6 +56,9 @@ export async function processFiles(
     );
     results.push(...allResults);
 
+    // 显示统计信息
+    _displayStats(aiAnalyzer);
+
     // 显示结果
     _displayResults(results, options);
   } catch (error) {
@@ -193,6 +196,7 @@ async function processAllFiles(
     try {
       // AI 分析
       const analysis = await aiAnalyzer.analyzeImage(imageFiles);
+      console.log("🚀 ~ analysis:", analysis);
       // 如果分析结果包含 "|||"，则将分析结果按 "|||" 分割
       const descriptions = analysis.includes("|||")
         ? analysis.split("|||")
@@ -334,6 +338,47 @@ async function processAllFiles(
   }
 
   return results;
+}
+
+/**
+ * 显示统计信息
+ * @param aiAnalyzer AI 分析器
+ */
+function _displayStats(aiAnalyzer: AIAnalyzer) {
+  const stats = aiAnalyzer.getStats();
+
+  if (stats.totalFiles === 0) {
+    return;
+  }
+
+  console.log();
+  console.log(chalk.cyan("📊 AI 分析统计信息:"));
+  console.log();
+
+  console.log(chalk.gray(`  📁 处理文件数: ${stats.totalFiles} 个`));
+  console.log(chalk.gray(`  📏 文件总大小: ${_formatBytes(stats.totalSize)}`));
+  console.log(
+    chalk.gray(`  🔢 预估 Token: ${stats.estimatedTokens.toLocaleString()}`),
+  );
+  console.log(
+    chalk.gray(`  📤 发送数据量: ${_formatBytes(stats.sentDataSize)}`),
+  );
+  console.log();
+}
+
+/**
+ * 格式化字节数
+ * @param bytes 字节数
+ * @returns 格式化后的字符串
+ */
+function _formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 }
 
 /**
