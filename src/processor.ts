@@ -250,7 +250,6 @@ async function processAllFiles(
 
     try {
       const videoFramesMap = new Map<string, string[]>();
-      const allFrames: string[] = [];
 
       // 提取关键帧
       for (const videoFile of videoFiles) {
@@ -265,7 +264,6 @@ async function processAllFiles(
           }
 
           videoFramesMap.set(videoFile, frames);
-          allFrames.push(...frames);
         } catch (error) {
           results.push({
             originalPath: videoFile,
@@ -275,14 +273,13 @@ async function processAllFiles(
         }
       }
 
-      // AI 分析
-      if (allFrames.length > 0) {
-        const analysis = await aiAnalyzer.analyzeImage(allFrames);
-        console.log("🚀 ~ analysis:", analysis);
-
-        // 重命名视频
-        for (const [videoFile, _frames] of videoFramesMap) {
+      // AI 分析并重命名每个视频文件
+      if (videoFramesMap.size > 0) {
+        for (const [videoFile, frames] of videoFramesMap) {
           try {
+            // 为每个视频单独分析
+            const analysis = await aiAnalyzer.analyzeImage(frames);
+
             const newName = fileRenamer.generateNewName(
               videoFile,
               analysis,

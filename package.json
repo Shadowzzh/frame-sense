@@ -12,7 +12,7 @@
     "dev": "tsx src/cli.ts",
     "build": "tsup src/cli.ts --format esm --dts --clean",
     "start": "node dist/cli.js",
-    "lint": "biome check .",
+    "lint": "biome check . && tsc --noEmit",
     "lint:fix": "biome check --fix .",
     "format": "biome format --write .",
     "type-check": "tsc --noEmit",
