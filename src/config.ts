@@ -1,16 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import Conf from "conf";
 
-/** 图片优化选项 */
-export interface ImageOptimizeOptions {
-  /** 宽度 */
-  width: number;
-  /** 高度 */
-  height: number;
-  /** 质量 (1-100) */
-  quality: number;
-}
-
 /** 配置选项 */
 export interface FrameSenseOptions {
   /** 目录 */
@@ -23,14 +13,10 @@ export interface FrameSenseOptions {
   format: "semantic" | "structured";
   /** 是否预览 */
   dryRun: boolean;
-  /** 是否详细 */
-  verbose: boolean;
   /** API 密钥 */
   apiKey?: string;
   /** 模型 */
   model?: string;
-  /** 图片优化设置 */
-  imageOptimize?: ImageOptimizeOptions;
 }
 
 /** 配置类 */
@@ -59,13 +45,7 @@ export class FrameSenseConfig {
         frames: 2,
         format: "semantic",
         dryRun: false,
-        verbose: false,
         model: "gemini-2.5-flash",
-        imageOptimize: {
-          width: 1280,
-          height: 720,
-          quality: 75,
-        },
       },
       configFileMode: 0o600, // 仅所有者可读写
     });

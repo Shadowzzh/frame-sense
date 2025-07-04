@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
-import { basename } from "node:path";
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import type { FrameSenseOptions } from "./config.js";
 import { IMAGE_EXTENSIONS } from "./constants.js";
+import { AI_PROMPTS } from "./prompts.js";
 
 /**
  * AI 分析器
@@ -27,20 +27,15 @@ export class AIAnalyzer {
   }
 
   /**
-   * 分析帧
+   * 分析帧（用于视频）
    * @param framePaths 帧路径
-   * @param originalVideoPath 原始视频路径
    * @returns 分析结果
    */
-  async analyzeFrames(
-    framePaths: string[],
-    originalVideoPath: string,
-  ): Promise<string> {
+  async analyzeFrames(framePaths: string[]): Promise<string> {
     try {
       const images = await Promise.all(
         framePaths.map(async (path) => {
           const optimizedBuffer = await this.optimizeImage(path);
-
           return {
             inlineData: {
               data: optimizedBuffer.toString("base64"),
@@ -50,12 +45,9 @@ export class AIAnalyzer {
         }),
       );
 
-      // 构建提示词
-      const prompt = this.buildPrompt(basename(originalVideoPath), "video");
-
       const contents = [
         {
-          parts: [{ text: prompt }],
+          parts: [{ text: AI_PROMPTS.VIDEO_ANALYSIS }],
           role: "user",
         },
         ...images.map((img) => ({
@@ -63,6 +55,7 @@ export class AIAnalyzer {
           role: "user",
         })),
       ];
+
       const result = await this.genAI.models.generateContent({
         model: this.options.model || "gemini-2.5-flash",
         contents,
@@ -128,11 +121,9 @@ export class AIAnalyzer {
         }),
       );
 
-      const prompt = this.buildPrompt(`${imagePaths.length}张图片`, "image");
-
       const contents = [
         {
-          parts: [{ text: prompt }],
+          parts: [{ text: AI_PROMPTS.IMAGE_ANALYSIS }],
           role: "user",
         },
         ...images.map((img) => ({
@@ -152,10 +143,6 @@ export class AIAnalyzer {
       try {
         // 使用正则表达式提取所有 DESC 格式的描述
         const descMatches = responseText.match(/DESC\d+:\s*(.+?)(?=\n|$)/g);
-        console.log(
-          "🚀 ~ AIAnalyzer ~ analyzeImage ~ descMatches:",
-          descMatches,
-        );
         if (descMatches && descMatches.length > 0) {
           // 提取每个描述的内容（去掉 DESC数字: 前缀）
           const descriptions = descMatches.map((match) =>
@@ -165,10 +152,6 @@ export class AIAnalyzer {
           // 验证描述数量是否与图片数量匹配
           if (descriptions.length === imagePaths.length) {
             return descriptions.join("|||"); // 使用特殊分隔符连接
-          } else {
-            console.warn(
-              `描述数量(${descriptions.length})与图片数量(${imagePaths.length})不匹配`,
-            );
           }
         }
 
@@ -181,10 +164,9 @@ export class AIAnalyzer {
         if (lines.length >= imagePaths.length) {
           return lines.slice(0, imagePaths.length).join("|||");
         }
-      } catch (error) {
+      } catch (_error) {
         // 解析失败，回退到统一描述
-        console.warn("解析 AI 批量响应失败，使用统一描述:", error);
-        console.warn("原始响应:", responseText);
+        console.warn("解析 AI 批量响应失败，使用统一描述");
       }
 
       return responseText;
@@ -193,38 +175,6 @@ export class AIAnalyzer {
         `AI 分析失败: ${error instanceof Error ? error.message : error}`,
       );
     }
-  }
-
-  /**
-   * 构建提示词
-   * @param fileName 文件名
-   * @param type 类型
-   * @returns 提示词
-   */
-  private buildPrompt(fileName: string, type: "video" | "image"): string {
-    const typeText = type === "video" ? "视频" : "图片";
-
-    return `
-你是一个专业的${typeText}内容分析师。我将给你多张图片，请为每张图片分析内容并提供简洁明了的中文描述。
-
-要求：
-1. 每张图片的描述要简洁（不超过10个字）
-2. 突出每张图片的主要内容和关键元素
-3. 避免使用模糊或通用的词汇
-4. 如果包含人物，描述人物的主要动作或状态
-5. 如果包含物体，描述物体的主要特征
-6. 如果包含场景，描述场景的主要特点
-
-输出格式要求：
-请严格按照以下格式返回结果，每张图片对应一行描述：
-DESC1: 第一张图片的描述
-DESC2: 第二张图片的描述
-DESC3: 第三张图片的描述
-
-注意：每行必须以 "DESC数字: " 开头，后面跟具体描述。描述数量必须与图片数量一致。
-
-文件信息：${fileName}
-    `.trim();
   }
 
   /**
@@ -256,20 +206,30 @@ DESC3: 第三张图片的描述
   }
 
   /**
-   * 优化图片
+   * 优化图片 - 根据尺寸和文件大小决定是否压缩
    * @param imagePath 图片路径
    * @returns 优化后的图片缓冲区
    */
   private async optimizeImage(imagePath: string): Promise<Buffer> {
-    const { width, height, quality } = this.options.imageOptimize || {
-      width: 1280,
-      height: 720,
-      quality: 75,
-    };
+    const image = sharp(imagePath);
+    const metadata = await image.metadata();
 
-    return sharp(imagePath)
-      .resize(width, height, { fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality })
-      .toBuffer();
+    // 获取文件大小（字节）
+    const fileSize = metadata.size || 0;
+    // 文件大小超过 2MB 或尺寸超过 1920x1080 时才压缩
+    const shouldOptimize =
+      fileSize > 2 * 1024 * 1024 ||
+      (metadata.width && metadata.width > 1920) ||
+      (metadata.height && metadata.height > 1080);
+
+    if (shouldOptimize) {
+      return image
+        .resize(1280, 720, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 75 })
+        .toBuffer();
+    }
+
+    // 不需要优化，直接转换为 JPEG
+    return image.jpeg().toBuffer();
   }
 }
