@@ -196,7 +196,6 @@ async function processAllFiles(
     try {
       // AI 分析
       const analysis = await aiAnalyzer.analyzeImage(imageFiles);
-      console.log("🚀 ~ analysis:", analysis);
       // 如果分析结果包含 "|||"，则将分析结果按 "|||" 分割
       const descriptions = analysis.includes("|||")
         ? analysis.split("|||")

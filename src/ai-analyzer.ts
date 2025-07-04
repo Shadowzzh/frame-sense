@@ -266,8 +266,29 @@ export class AIAnalyzer {
           );
 
           // 验证描述数量是否与图片数量匹配
+          console.log(
+            `📊 描述数量: ${descriptions.length}, 图片数量: ${imagePaths.length}`,
+          );
+
           if (descriptions.length === imagePaths.length) {
             return descriptions.join("|||"); // 使用特殊分隔符连接
+          } else if (descriptions.length > 0) {
+            // 如果描述数量不匹配，但有描述，则尝试补全或截取
+            console.log("⚠️ 描述数量不匹配，尝试调整...");
+
+            // 如果描述不够，重复最后一个描述
+            while (descriptions.length < imagePaths.length) {
+              descriptions.push(
+                descriptions[descriptions.length - 1] || "未知内容",
+              );
+            }
+
+            // 如果描述过多，截取前面的
+            if (descriptions.length > imagePaths.length) {
+              descriptions.splice(imagePaths.length);
+            }
+
+            return descriptions.join("|||");
           }
         }
 
