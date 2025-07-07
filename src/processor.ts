@@ -52,15 +52,15 @@ export async function processFiles(options: ProcessFilesOptions) {
     // 按文件类型分组
     const categorizedFiles = categorizeFiles(files);
 
-    // 显示统计信息
-    displayStats(aiAnalyzer);
-
     const results = await processAllFiles(categorizedFiles, {
       frameExtractor,
       aiAnalyzer,
       fileRenamer,
       options,
     });
+
+    // 显示统计信息
+    displayStats(aiAnalyzer);
 
     // 显示结果
     displayResults(results, options);
