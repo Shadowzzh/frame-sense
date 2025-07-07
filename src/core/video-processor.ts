@@ -57,39 +57,72 @@ export async function processVideos(
 
   extractSpinner.succeed(`✅ 完成 ${videoFramesMap.size} 个视频关键帧提取`);
 
-  // AI 分析并重命名每个视频文件
+  // AI 批量分析并重命名视频文件
   if (videoFramesMap.size > 0) {
-    const analysisSpinner = ora(
-      `🤖 AI 分析视频内容 (0/${videoFramesMap.size})...`,
-    ).start();
+    const analysisSpinner = ora(`🤖 AI 批量分析视频内容...`).start();
 
-    let processedCount = 0;
+    try {
+      // 收集所有帧文件路径进行批量分析
+      const allFrames: string[] = [];
+      const videoFramesCounts: number[] = [];
 
-    for (const [videoFile, frames] of videoFramesMap) {
-      processedCount++;
-      analysisSpinner.text = `🤖 AI 分析视频内容 (${processedCount}/${videoFramesMap.size})... ${basename(videoFile)}`;
+      for (const [, frames] of videoFramesMap) {
+        allFrames.push(...frames);
+        videoFramesCounts.push(frames.length);
+      }
 
-      try {
-        // 为每个视频单独分析
-        const analysis = await aiAnalyzer.analyzeImage(frames);
+      // 单次 AI API 调用，批量分析所有视频帧
+      const batchAnalysis = await aiAnalyzer.analyzeImage(allFrames);
 
-        const newName = fileRenamer.generateNewName(
-          videoFile,
-          analysis,
-          options.format as "semantic" | "structured",
-        );
+      // 解析批量分析结果
+      const analysisResults = batchAnalysis.split("|||");
 
-        if (!options.dryRun) {
-          await fileRenamer.renameFile(videoFile, newName);
+      analysisSpinner.text = `🤖 处理分析结果与重命名...`;
+
+      // 按视频分组处理分析结果
+      let resultIndex = 0;
+      for (const [videoFile, frames] of videoFramesMap) {
+        try {
+          const frameCount = frames.length;
+          const videoAnalysis = analysisResults
+            .slice(resultIndex, resultIndex + frameCount)
+            .join(" ");
+
+          resultIndex += frameCount;
+
+          const newName = fileRenamer.generateNewName(
+            videoFile,
+            videoAnalysis || "视频内容",
+            options.format as "semantic" | "structured",
+          );
+
+          if (!options.dryRun) {
+            await fileRenamer.renameFile(videoFile, newName);
+          }
+
+          results.push({
+            originalPath: videoFile,
+            newName,
+            analysis: videoAnalysis || "视频内容",
+            success: true,
+          });
+        } catch (error) {
+          results.push({
+            originalPath: videoFile,
+            error: error instanceof Error ? error.message : String(error),
+            success: false,
+          });
         }
+      }
 
-        results.push({
-          originalPath: videoFile,
-          newName,
-          analysis,
-          success: true,
-        });
-      } catch (error) {
+      analysisSpinner.succeed(
+        `✅ 完成 ${videoFramesMap.size} 个视频AI批量分析与重命名`,
+      );
+    } catch (error) {
+      analysisSpinner.fail("❌ AI 批量分析失败");
+
+      // 如果批量分析失败，为每个视频添加错误结果
+      for (const [videoFile] of videoFramesMap) {
         results.push({
           originalPath: videoFile,
           error: error instanceof Error ? error.message : String(error),
@@ -97,10 +130,6 @@ export async function processVideos(
         });
       }
     }
-
-    analysisSpinner.succeed(
-      `✅ 完成 ${videoFramesMap.size} 个视频AI分析与重命名`,
-    );
 
     // 清理临时文件
     await cleanupFrames(videoFramesMap, frameExtractor);
