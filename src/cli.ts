@@ -35,6 +35,7 @@ program
   .option("--frames <number>", "每个视频提取的关键帧数量", "2")
   .option("--format <format>", "命名格式 (semantic|structured)", "semantic")
   .option("--dry-run", "预览重命名结果，不执行实际重命名")
+  .option("-v, --verbose", "显示详细的调试信息")
   .action(async (options: Record<string, unknown>) => {
     await handleMainCommand(options);
   });

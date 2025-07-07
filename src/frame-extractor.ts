@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
+import chalk from "chalk";
+import type { FrameSenseOptions } from "@/config";
 import { checkFFmpegSuite } from "@/utils/ffmpeg-checker";
 
 /**
@@ -11,8 +13,10 @@ import { checkFFmpegSuite } from "@/utils/ffmpeg-checker";
 export class FrameExtractor {
   private tempDir: string;
   private createdDirs: Set<string> = new Set();
+  private options?: FrameSenseOptions;
 
-  constructor() {
+  constructor(options?: FrameSenseOptions) {
+    this.options = options;
     // 临时目录
     this.tempDir = join(tmpdir(), "frame-sense");
   }
@@ -30,12 +34,21 @@ export class FrameExtractor {
       throw new Error("FFmpeg 或 FFprobe 不可用，无法提取视频帧");
     }
 
+    if (this.options?.verbose) {
+      console.log(chalk.blue(`🎬 开始提取视频帧: ${videoPath}`));
+      console.log(chalk.blue(`🎯 提取帧数: ${frameCount}`));
+    }
+
     await this.ensureTempDir();
 
     // 视频文件名
     const videoName = basename(videoPath, extname(videoPath));
     // 临时帧目录
     const frameDir = join(this.tempDir, randomUUID());
+
+    if (this.options?.verbose) {
+      console.log(chalk.blue(`📁 临时目录: ${frameDir}`));
+    }
 
     // 创建临时帧目录
     await fs.mkdir(frameDir, { recursive: true });
@@ -45,8 +58,20 @@ export class FrameExtractor {
       // 获取视频时长
       const duration = await this.getVideoDuration(videoPath);
 
+      if (this.options?.verbose) {
+        console.log(chalk.blue(`⏱️  视频时长: ${duration.toFixed(2)} 秒`));
+      }
+
       // 计算关键帧时间点
       const timePoints = this.calculateTimePoints(duration, frameCount);
+
+      if (this.options?.verbose) {
+        console.log(
+          chalk.blue(
+            `📍 帧时间点: ${timePoints.map((t) => t.toFixed(2)).join(", ")} 秒`,
+          ),
+        );
+      }
 
       // 提取关键帧
       const framePaths: string[] = [];
@@ -58,9 +83,18 @@ export class FrameExtractor {
         const timePoint = timePoints[i];
         // 提取帧
         if (timePoint !== undefined) {
+          if (this.options?.verbose) {
+            console.log(
+              chalk.blue(`🎞️  提取第 ${i + 1} 帧 (${timePoint.toFixed(2)}s)`),
+            );
+          }
           await this.extractFrameAtTime(videoPath, timePoint, framePath);
           framePaths.push(framePath);
         }
+      }
+
+      if (this.options?.verbose) {
+        console.log(chalk.blue(`✅ 帧提取完成，共 ${framePaths.length} 帧`));
       }
 
       return framePaths;

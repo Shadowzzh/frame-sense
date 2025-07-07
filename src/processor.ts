@@ -50,6 +50,17 @@ export async function processFiles(options: ProcessFilesOptions) {
 
     spinner.succeed(`发现 ${files.length} 个文件待处理`);
 
+    if (options.verbose) {
+      console.log(chalk.blue("📋 详细模式已启用"));
+      console.log(
+        chalk.blue(`📁 处理目录: ${options.directory || "使用文件列表"}`),
+      );
+      console.log(chalk.blue(`🎯 命名格式: ${options.format}`));
+      console.log(chalk.blue(`🎬 帧数: ${options.frames}`));
+      console.log(chalk.blue(`🔄 预览模式: ${options.dryRun ? "是" : "否"}`));
+      console.log(chalk.blue(`🤖 模型: ${options.model}`));
+    }
+
     console.log(chalk.gray("文件列表:"));
     for (const file of files) {
       console.log(chalk.gray(`  - ${file}`));
@@ -57,7 +68,7 @@ export async function processFiles(options: ProcessFilesOptions) {
     console.log();
 
     // 初始化帧提取器
-    const frameExtractor = new FrameExtractor();
+    const frameExtractor = new FrameExtractor(options);
 
     // 注册清理函数 - 清理临时帧文件
     const cleanupFrames = () => {
@@ -75,6 +86,16 @@ export async function processFiles(options: ProcessFilesOptions) {
 
     // 按文件类型分组
     const categorizedFiles = categorizeFiles(files);
+
+    if (options.verbose) {
+      console.log(chalk.blue("📊 文件分类统计:"));
+      console.log(
+        chalk.blue(`  - 图片文件: ${categorizedFiles.imageFiles.length} 个`),
+      );
+      console.log(
+        chalk.blue(`  - 视频文件: ${categorizedFiles.videoFiles.length} 个`),
+      );
+    }
 
     // 处理所有文件
     const results = await processAllFiles(categorizedFiles, {

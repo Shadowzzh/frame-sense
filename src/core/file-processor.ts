@@ -35,14 +35,30 @@ export async function processAllFiles(
 
   // 处理图片文件
   if (imageFiles.length > 0) {
+    if (context.options.verbose) {
+      console.log(chalk.blue("🖼️  开始处理图片文件..."));
+    }
     const imageResults = await processImages(imageFiles, context);
     results.push(...imageResults);
+    if (context.options.verbose) {
+      console.log(
+        chalk.blue(`✅ 图片处理完成，共处理 ${imageResults.length} 张`),
+      );
+    }
   }
 
   // 处理视频文件
   if (videoFiles.length > 0) {
+    if (context.options.verbose) {
+      console.log(chalk.blue("🎬 开始处理视频文件..."));
+    }
     const videoResults = await processVideos(videoFiles, context);
     results.push(...videoResults);
+    if (context.options.verbose) {
+      console.log(
+        chalk.blue(`✅ 视频处理完成，共处理 ${videoResults.length} 个`),
+      );
+    }
   }
 
   return results;

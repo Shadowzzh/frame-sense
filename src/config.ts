@@ -13,6 +13,8 @@ export interface FrameSenseOptions {
   format: "semantic" | "structured";
   /** 是否预览 */
   dryRun: boolean;
+  /** 显示详细调试信息 */
+  verbose: boolean;
   /** API 密钥 */
   apiKey?: string;
   /** 模型 */
@@ -45,6 +47,7 @@ export class FrameSenseConfig {
         frames: 2,
         format: "semantic",
         dryRun: false,
+        verbose: false,
         model: "gemini-2.5-flash",
       },
       configFileMode: 0o600, // 仅所有者可读写
