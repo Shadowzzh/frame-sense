@@ -6,6 +6,7 @@ import { processAllFiles } from "@/core/file-processor";
 import { categorizeFiles, getFileList } from "@/core/file-scanner";
 import { FileRenamer } from "@/file-renamer";
 import { FrameExtractor } from "@/frame-extractor";
+import { checkFFmpegSuite, showFFmpegError } from "@/utils/ffmpeg-checker";
 import { displayResults } from "@/utils/result-formatter";
 import { getSignalHandler } from "@/utils/signal-handler";
 import { displayStats } from "@/utils/stats-collector";
@@ -22,6 +23,18 @@ interface ProcessFilesOptions extends FrameSenseOptions {
  * @param options 配置选项
  */
 export async function processFiles(options: ProcessFilesOptions) {
+  // 检查 FFmpeg 依赖
+  const ffmpegCheckSpinner = ora("正在检查 FFmpeg 依赖...").start();
+  const ffmpegCheck = await checkFFmpegSuite();
+
+  if (!ffmpegCheck.allAvailable) {
+    ffmpegCheckSpinner.fail();
+    showFFmpegError(ffmpegCheck);
+    throw new Error("FFmpeg 依赖不可用，无法处理视频文件");
+  }
+
+  ffmpegCheckSpinner.succeed("FFmpeg 依赖检查通过");
+
   const spinner = ora("正在扫描文件...").start();
   // 初始化信号处理器
   const signalHandler = getSignalHandler();

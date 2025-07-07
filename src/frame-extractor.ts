@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
+import { checkFFmpegSuite } from "@/utils/ffmpeg-checker";
 
 /**
  * 帧提取器
@@ -23,6 +24,12 @@ export class FrameExtractor {
    * @returns 帧路径
    */
   async extractFrames(videoPath: string, frameCount = 2): Promise<string[]> {
+    // 检查 FFmpeg 依赖
+    const ffmpegCheck = await checkFFmpegSuite();
+    if (!ffmpegCheck.allAvailable) {
+      throw new Error("FFmpeg 或 FFprobe 不可用，无法提取视频帧");
+    }
+
     await this.ensureTempDir();
 
     // 视频文件名
