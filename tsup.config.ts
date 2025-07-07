@@ -12,4 +12,5 @@ export default defineConfig({
     js: "#!/usr/bin/env node",
   },
   outDir: "dist",
+  tsconfig: "./tsconfig.json",
 });

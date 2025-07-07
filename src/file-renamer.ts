@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { rename } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
-import type { FrameSenseOptions } from "./config.js";
+import type { FrameSenseOptions } from "@/config";
 
 /**
  * 文件重命名器

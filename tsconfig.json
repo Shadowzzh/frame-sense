@@ -11,6 +11,15 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "removeComments": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"],
+      "@/types/*": ["types/*"],
+      "@/utils/*": ["utils/*"],
+      "@/core/*": ["core/*"],
+      "@/cli/*": ["cli/*"],
+      "@/errors/*": ["errors/*"]
+    },
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,

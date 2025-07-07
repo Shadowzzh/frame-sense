@@ -24,7 +24,6 @@ export const VIDEO_EXTENSIONS = [
   "gif",
   "gifv",
   "mng",
-  "avi",
   "MTS",
   "M2TS",
   "TS",

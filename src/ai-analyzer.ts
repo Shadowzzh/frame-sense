@@ -1,12 +1,13 @@
 import { existsSync, statSync } from "node:fs";
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
-import type { FrameSenseOptions } from "./config.js";
-import { IMAGE_EXTENSIONS } from "./constants.js";
-import { AI_PROMPTS } from "./prompts.js";
+import type { FrameSenseOptions } from "@/config";
+import { IMAGE_EXTENSIONS } from "@/constants";
+import { AI_PROMPTS } from "@/prompts";
 
 /**
  * 统计信息接口
+ * 用于记录分析过程中的统计信息
  */
 export interface AnalysisStats {
   /** 文件总数 */
@@ -51,18 +52,6 @@ export class AIAnalyzer {
    */
   getStats(): AnalysisStats {
     return { ...this.stats };
-  }
-
-  /**
-   * 重置统计信息
-   */
-  resetStats(): void {
-    this.stats = {
-      totalFiles: 0,
-      totalSize: 0,
-      estimatedTokens: 0,
-      sentDataSize: 0,
-    };
   }
 
   /**
@@ -122,196 +111,41 @@ export class AIAnalyzer {
    * @returns 分析结果
    */
   async analyzeFrames(framePaths: string[]): Promise<string> {
-    try {
-      // 计算文件统计信息
-      this.calculateFileStats(framePaths);
-
-      const images = await Promise.all(
-        framePaths.map(async (path) => {
-          const optimizedBuffer = await this.optimizeImage(path);
-          return {
-            inlineData: {
-              data: optimizedBuffer.toString("base64"),
-              mimeType: "image/jpeg",
-            },
-          };
-        }),
-      );
-
-      const base64Data = images.map((img) => img.inlineData.data);
-      const promptText = AI_PROMPTS.VIDEO_ANALYSIS;
-
-      // 计算 token 和发送数据大小
-      this.stats.estimatedTokens = this.estimateTokens(base64Data, promptText);
-      this.stats.sentDataSize = this.calculateSentDataSize(
-        base64Data,
-        promptText,
-      );
-
-      const contents = [
-        {
-          parts: [{ text: promptText }],
-          role: "user",
-        },
-        ...images.map((img) => ({
-          parts: [{ inlineData: img.inlineData }],
-          role: "user",
-        })),
-      ];
-
-      const result = await this.genAI.models.generateContent({
-        model: this.options.model || "gemini-2.5-flash",
-        contents,
-      });
-
-      return result.text?.trim() || "";
-    } catch (error) {
-      throw new Error(
-        `AI 分析失败: ${error instanceof Error ? error.message : error}`,
-      );
-    }
+    return this.performAnalysis(framePaths, AI_PROMPTS.VIDEO_ANALYSIS, false);
   }
 
   /**
    * 分析图片（统一多图片处理）
    * @param imagePaths 图片路径数组
    * @returns 分析结果
-   *
-   * 特性：
-   * - 最多支持3600张图片
-   * - 支持格式：jpg, jpeg, png, gif, bmp, webp, tiff, heic, heif
-   * - 单张图片也放在数组中进行处理
    */
   async analyzeImage(imagePaths: string[]): Promise<string> {
-    try {
-      // 验证图片数量限制
-      if (imagePaths.length > 3600) {
-        throw new Error("批量处理最多支持3600张图片");
-      }
-
-      if (imagePaths.length === 0) {
-        throw new Error("图片路径不能为空");
-      }
-
-      // 验证所有图片文件是否存在
-      const missingFiles = imagePaths.filter((path) => !existsSync(path));
-      if (missingFiles.length > 0) {
-        throw new Error(`以下图片文件不存在: ${missingFiles.join(", ")}`);
-      }
-
-      // 过滤不支持的图片格式
-      const unsupportedFiles = imagePaths.filter((path) => {
-        const ext = path.toLowerCase().split(".").pop() || "";
-        return !(IMAGE_EXTENSIONS as readonly string[]).includes(ext);
-      });
-
-      // 如果存在不支持的图片格式，则抛出错误
-      if (unsupportedFiles.length > 0) {
-        throw new Error(`不支持的图片格式: ${unsupportedFiles.join(", ")}`);
-      }
-
-      // 计算文件统计信息
-      this.calculateFileStats(imagePaths);
-
-      // 使用 Sharp 优化图片并转换为 base64 格式
-      const images = await Promise.all(
-        imagePaths.map(async (path) => {
-          const optimizedBuffer = await this.optimizeImage(path);
-
-          return {
-            inlineData: {
-              data: optimizedBuffer.toString("base64"),
-              mimeType: "image/jpeg",
-            },
-          };
-        }),
-      );
-
-      const base64Data = images.map((img) => img.inlineData.data);
-      const promptText = AI_PROMPTS.IMAGE_ANALYSIS;
-
-      // 计算 token 和发送数据大小
-      this.stats.estimatedTokens = this.estimateTokens(base64Data, promptText);
-      this.stats.sentDataSize = this.calculateSentDataSize(
-        base64Data,
-        promptText,
-      );
-
-      const contents = [
-        {
-          parts: [{ text: promptText }],
-          role: "user",
-        },
-        ...images.map((img) => ({
-          parts: [{ inlineData: img.inlineData }],
-          role: "user",
-        })),
-      ];
-
-      const result = await this.genAI.models.generateContent({
-        model: this.options.model || "gemini-2.5-flash",
-        contents,
-      });
-
-      const responseText = result.text || "";
-
-      // 解析响应格式
-      try {
-        // 使用正则表达式提取所有 DESC 格式的描述
-        const descMatches = responseText.match(/DESC\d+:\s*(.+?)(?=\n|$)/g);
-        if (descMatches && descMatches.length > 0) {
-          // 提取每个描述的内容（去掉 DESC数字: 前缀）
-          const descriptions = descMatches.map((match) =>
-            match.replace(/^DESC\d+:\s*/, "").trim(),
-          );
-
-          // 验证描述数量是否与图片数量匹配
-          console.log(
-            `📊 描述数量: ${descriptions.length}, 图片数量: ${imagePaths.length}`,
-          );
-
-          if (descriptions.length === imagePaths.length) {
-            return descriptions.join("|||"); // 使用特殊分隔符连接
-          } else if (descriptions.length > 0) {
-            // 如果描述数量不匹配，但有描述，则尝试补全或截取
-            console.log("⚠️ 描述数量不匹配，尝试调整...");
-
-            // 如果描述不够，重复最后一个描述
-            while (descriptions.length < imagePaths.length) {
-              descriptions.push(
-                descriptions[descriptions.length - 1] || "未知内容",
-              );
-            }
-
-            // 如果描述过多，截取前面的
-            if (descriptions.length > imagePaths.length) {
-              descriptions.splice(imagePaths.length);
-            }
-
-            return descriptions.join("|||");
-          }
-        }
-
-        // 如果没有找到 DESC 格式，尝试按行分割
-        const lines = responseText
-          .split("\n")
-          .map((line) => line.trim())
-          .filter((line) => line.length > 0);
-
-        if (lines.length >= imagePaths.length) {
-          return lines.slice(0, imagePaths.length).join("|||");
-        }
-      } catch (_error) {
-        // 解析失败，回退到统一描述
-        console.warn("解析 AI 批量响应失败，使用统一描述");
-      }
-
-      return responseText;
-    } catch (error) {
-      throw new Error(
-        `AI 分析失败: ${error instanceof Error ? error.message : error}`,
-      );
+    // 验证图片数量限制
+    if (imagePaths.length > 3600) {
+      throw new Error("批量处理最多支持3600张图片");
     }
+
+    if (imagePaths.length === 0) {
+      throw new Error("图片路径不能为空");
+    }
+
+    // 验证所有图片文件是否存在
+    const missingFiles = imagePaths.filter((path) => !existsSync(path));
+    if (missingFiles.length > 0) {
+      throw new Error(`以下图片文件不存在: ${missingFiles.join(", ")}`);
+    }
+
+    // 过滤不支持的图片格式
+    const unsupportedFiles = imagePaths.filter((path) => {
+      const ext = path.toLowerCase().split(".").pop() || "";
+      return !(IMAGE_EXTENSIONS as readonly string[]).includes(ext);
+    });
+
+    if (unsupportedFiles.length > 0) {
+      throw new Error(`不支持的图片格式: ${unsupportedFiles.join(", ")}`);
+    }
+
+    return this.performAnalysis(imagePaths, AI_PROMPTS.IMAGE_ANALYSIS, true);
   }
 
   /**
@@ -340,6 +174,134 @@ export class AIAnalyzer {
         `API 连接测试失败: ${error instanceof Error ? error.message : error}`,
       );
     }
+  }
+
+  /**
+   * 执行 AI 分析的核心逻辑
+   * @param imagePaths 图片路径数组
+   * @param promptText 提示词
+   * @param parseMultipleResults 是否解析多个结果
+   * @returns 分析结果
+   */
+  private async performAnalysis(
+    imagePaths: string[],
+    promptText: string,
+    parseMultipleResults: boolean,
+  ): Promise<string> {
+    try {
+      // 计算文件统计信息
+      this.calculateFileStats(imagePaths);
+
+      // 优化图片并转换为 base64
+      const images = await Promise.all(
+        imagePaths.map(async (path) => {
+          const optimizedBuffer = await this.optimizeImage(path);
+          return {
+            inlineData: {
+              data: optimizedBuffer.toString("base64"),
+              mimeType: "image/jpeg",
+            },
+          };
+        }),
+      );
+
+      const base64Data = images.map((img) => img.inlineData.data);
+
+      // 计算统计信息
+      this.stats.estimatedTokens = this.estimateTokens(base64Data, promptText);
+      this.stats.sentDataSize = this.calculateSentDataSize(
+        base64Data,
+        promptText,
+      );
+
+      // 构建请求内容
+      const contents = [
+        { parts: [{ text: promptText }], role: "user" },
+        ...images.map((img) => ({
+          parts: [{ inlineData: img.inlineData }],
+          role: "user",
+        })),
+      ];
+
+      // 发送请求
+      const result = await this.genAI.models.generateContent({
+        model: this.options.model || "gemini-2.5-flash",
+        contents,
+      });
+
+      const responseText = result.text || "";
+
+      // 如果需要解析多个结果（图片分析）
+      if (parseMultipleResults) {
+        return this.parseMultipleResults(responseText, imagePaths.length);
+      }
+
+      return responseText.trim();
+    } catch (error) {
+      throw new Error(
+        `AI 分析失败: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
+
+  /**
+   * 解析多个结果（用于图片批量分析）
+   * @param responseText 响应文本
+   * @param expectedCount 期望的结果数量
+   * @returns 解析后的结果
+   */
+  private parseMultipleResults(
+    responseText: string,
+    expectedCount: number,
+  ): string {
+    try {
+      // 使用正则表达式提取 DESC 格式的描述
+      const descMatches = responseText.match(/DESC\d+:\s*(.+?)(?=\n|$)/g);
+      if (descMatches && descMatches.length > 0) {
+        const descriptions = descMatches.map((match) =>
+          match.replace(/^DESC\d+:\s*/, "").trim(),
+        );
+
+        console.log(
+          `📊 描述数量: ${descriptions.length}, 图片数量: ${expectedCount}`,
+        );
+
+        if (descriptions.length === expectedCount) {
+          return descriptions.join("|||");
+        }
+
+        if (descriptions.length > 0) {
+          console.log("⚠️ 描述数量不匹配，尝试调整...");
+
+          // 调整描述数量
+          while (descriptions.length < expectedCount) {
+            descriptions.push(
+              descriptions[descriptions.length - 1] || "未知内容",
+            );
+          }
+
+          if (descriptions.length > expectedCount) {
+            descriptions.splice(expectedCount);
+          }
+
+          return descriptions.join("|||");
+        }
+      }
+
+      // 尝试按行分割
+      const lines = responseText
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      if (lines.length >= expectedCount) {
+        return lines.slice(0, expectedCount).join("|||");
+      }
+    } catch (_error) {
+      console.warn("解析 AI 批量响应失败，使用统一描述");
+    }
+
+    return responseText;
   }
 
   /**
