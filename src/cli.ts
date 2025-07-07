@@ -5,10 +5,14 @@ import { program } from "commander";
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 import { createConfigCommand } from "@/cli/commands/config-command";
 import { handleMainCommand } from "@/cli/handlers/main-handler";
+import { getSignalHandler } from "@/utils/signal-handler";
 
 // 创建 EnvHttpProxyAgent 实例，它将自动读取环境变量
 const envHttpProxyAgent = new EnvHttpProxyAgent();
 setGlobalDispatcher(envHttpProxyAgent);
+
+// 初始化信号处理器
+getSignalHandler();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

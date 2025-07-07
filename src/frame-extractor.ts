@@ -9,6 +9,7 @@ import { basename, dirname, extname, join } from "node:path";
  */
 export class FrameExtractor {
   private tempDir: string;
+  private createdDirs: Set<string> = new Set();
 
   constructor() {
     // 临时目录
@@ -31,6 +32,7 @@ export class FrameExtractor {
 
     // 创建临时帧目录
     await fs.mkdir(frameDir, { recursive: true });
+    this.createdDirs.add(frameDir);
 
     try {
       // 获取视频时长
@@ -58,6 +60,7 @@ export class FrameExtractor {
     } catch (error) {
       // 清理临时目录
       await fs.rm(frameDir, { recursive: true, force: true });
+      this.createdDirs.delete(frameDir);
       throw error;
     }
   }
@@ -80,9 +83,31 @@ export class FrameExtractor {
       const frameDir = dirname(framePaths[0]);
       try {
         await fs.rmdir(frameDir);
+        this.createdDirs.delete(frameDir);
       } catch {
         // 忽略清理错误
       }
+    }
+  }
+
+  /**
+   * 清理所有临时目录
+   */
+  async cleanup(): Promise<void> {
+    for (const dir of this.createdDirs) {
+      try {
+        await fs.rm(dir, { recursive: true, force: true });
+      } catch {
+        // 忽略清理错误
+      }
+    }
+    this.createdDirs.clear();
+
+    // 尝试清理主临时目录
+    try {
+      await fs.rm(this.tempDir, { recursive: true, force: true });
+    } catch {
+      // 忽略清理错误
     }
   }
 
