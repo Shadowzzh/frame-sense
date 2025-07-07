@@ -3,11 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Content } from "@google/genai";
 import { GoogleGenAI } from "@google/genai";
-import chalk from "chalk";
 import sharp from "sharp";
 import type { FrameSenseOptions } from "@/config";
 import { IMAGE_EXTENSIONS } from "@/constants";
 import { AI_PROMPTS } from "@/prompts";
+import { logger } from "@/utils/logger";
 
 /**
  * 统计信息接口
@@ -197,31 +197,36 @@ export class AIAnalyzer {
       this.calculateFileStats(imagePaths);
 
       if (this.options.verbose) {
-        console.log(`🤖 开始 AI 分析，共 ${imagePaths.length} 个文件`);
-        console.log(
+        logger.verbose(`🤖 开始 AI 分析，共 ${imagePaths.length} 个文件`);
+        logger.verbose(
           `📊 文件总大小: ${(this.stats.totalSize / 1024 / 1024).toFixed(2)} MB`,
         );
-        console.log(`📝 使用的提示词:`);
-        console.log(`---`);
-        console.log(promptText);
-        console.log(`---`);
+        logger.verbose(`📝 使用的提示词:`);
+        logger.verbose(`---`);
+        logger.verbose(promptText);
+        logger.verbose(`---`);
       }
 
       // 优化图片并转换为 base64
-      const images = await Promise.all(
-        imagePaths.map(async (path) => {
-          if (this.options.verbose) {
-            console.log(`🖼️  正在优化: ${path}`);
-          }
-          const optimizedBuffer = await this.optimizeImage(path);
-          return {
-            inlineData: {
-              data: optimizedBuffer.toString("base64"),
-              mimeType: "image/jpeg",
-            },
-          };
-        }),
-      );
+      const images: {
+        inlineData: {
+          data: string;
+          mimeType: string;
+        };
+      }[] = [];
+
+      for (const path of imagePaths) {
+        if (this.options.verbose) {
+          logger.verbose(`🖼️  正在优化: ${path}`);
+        }
+        const optimizedBuffer = await this.optimizeImage(path);
+        images.push({
+          inlineData: {
+            data: optimizedBuffer.toString("base64"),
+            mimeType: "image/jpeg",
+          },
+        });
+      }
 
       const base64Data = images.map((img) => img.inlineData.data);
 
@@ -233,11 +238,11 @@ export class AIAnalyzer {
       );
 
       if (this.options.verbose) {
-        console.log(`🧮 预估 Token 数: ${this.stats.estimatedTokens}`);
-        console.log(
+        logger.verbose(`🧮 预估 Token 数: ${this.stats.estimatedTokens}`);
+        logger.verbose(
           `📦 发送数据大小: ${(this.stats.sentDataSize / 1024 / 1024).toFixed(2)} MB`,
         );
-        console.log(
+        logger.verbose(
           `🚀 发送请求到 ${this.options.model || "gemini-2.5-flash"} 模型`,
         );
       }
@@ -252,10 +257,10 @@ export class AIAnalyzer {
       ];
 
       if (this.options.verbose) {
-        console.log(`📋 请求结构:`);
-        console.log(`  - 文本部分: 1 个 (提示词)`);
-        console.log(`  - 图片部分: ${images.length} 个`);
-        console.log(`  - 总计内容块: ${contents.length} 个`);
+        logger.verbose(`📋 请求结构:`);
+        logger.verbose(`  - 文本部分: 1 个 (提示词)`);
+        logger.verbose(`  - 图片部分: ${images.length} 个`);
+        logger.verbose(`  - 总计内容块: ${contents.length} 个`);
 
         // 将完整请求内容写入文件
         this.writeRequestToFile(contents);
@@ -270,11 +275,11 @@ export class AIAnalyzer {
       const responseText = result.text || "";
 
       if (this.options.verbose) {
-        console.log(`✅ AI 分析完成，响应长度: ${responseText.length} 字符`);
-        console.log(`📄 AI 响应内容:`);
-        console.log(`---`);
-        console.log(responseText);
-        console.log(`---`);
+        logger.verbose(`✅ AI 分析完成，响应长度: ${responseText.length} 字符`);
+        logger.verbose(`📄 AI 响应内容:`);
+        logger.verbose(`---`);
+        logger.verbose(responseText);
+        logger.verbose(`---`);
       }
 
       // 如果需要解析多个结果（图片分析）
@@ -308,14 +313,14 @@ export class AIAnalyzer {
           match.replace(/^DESC\d+:\s*/, "").trim(),
         );
 
-        console.log(
+        logger.verbose(
           `📊 描述数量: ${descriptions.length}, 图片数量: ${expectedCount}`,
         );
 
         if (this.options.verbose) {
-          console.log(`🔍 解析到的描述:`);
+          logger.verbose(`🔍 解析到的描述:`);
           descriptions.forEach((desc, index) => {
-            console.log(`  ${index + 1}. ${desc}`);
+            logger.verbose(`  ${index + 1}. ${desc}`);
           });
         }
 
@@ -324,7 +329,7 @@ export class AIAnalyzer {
         }
 
         if (descriptions.length > 0) {
-          console.log("⚠️ 描述数量不匹配，尝试调整...");
+          logger.warn("⚠️ 描述数量不匹配，尝试调整...");
 
           // 调整描述数量
           while (descriptions.length < expectedCount) {
@@ -338,9 +343,9 @@ export class AIAnalyzer {
           }
 
           if (this.options.verbose) {
-            console.log(`🔧 调整后的描述:`);
+            logger.verbose(`🔧 调整后的描述:`);
             descriptions.forEach((desc, index) => {
-              console.log(`  ${index + 1}. ${desc}`);
+              logger.verbose(`  ${index + 1}. ${desc}`);
             });
           }
 
@@ -358,7 +363,7 @@ export class AIAnalyzer {
         return lines.slice(0, expectedCount).join("|||");
       }
     } catch (_error) {
-      console.warn("解析 AI 批量响应失败，使用统一描述");
+      logger.warn("解析 AI 批量响应失败，使用统一描述");
     }
 
     return responseText;
@@ -373,24 +378,24 @@ export class AIAnalyzer {
     const image = sharp(imagePath);
     const metadata = await image.metadata();
 
-    if (this.options.verbose) {
-      console.log(`  📐 图片尺寸: ${metadata.width}x${metadata.height}`);
-      console.log(
-        `  📏 文件大小: ${((metadata.size || 0) / 1024).toFixed(2)} KB`,
-      );
-    }
+    // 获取真实文件大小（字节）
+    const fileStats = statSync(imagePath);
+    const fileSize = fileStats.size;
 
-    // 获取文件大小（字节）
-    const fileSize = metadata.size || 0;
     // 文件大小超过 1MB 或尺寸超过 1920x1080 时才压缩
     const shouldOptimize =
       fileSize > 1 * 1024 * 1024 ||
       (metadata.width && metadata.width > 1920) ||
       (metadata.height && metadata.height > 1080);
 
+    if (this.options.verbose) {
+      logger.verbose(`  📐 图片尺寸: ${metadata.width}x${metadata.height}`);
+      logger.verbose(`  📏 文件大小: ${(fileSize / 1024).toFixed(2)} KB`);
+    }
+
     if (shouldOptimize) {
       if (this.options.verbose) {
-        console.log(`  🔧 需要优化: 压缩到 1280x720, 质量 75%`);
+        logger.verbose(`  🔧 需要优化: 压缩到 1280x720, 质量 75%`);
       }
       return image
         .resize(1280, 720, { fit: "inside", withoutEnlargement: true })
@@ -399,7 +404,7 @@ export class AIAnalyzer {
     }
 
     if (this.options.verbose) {
-      console.log(`  ✅ 无需优化: 直接转换为 JPEG`);
+      logger.verbose(`  ✅ 无需优化: 直接转换为 JPEG`);
     }
     // 不需要优化，直接转换为 JPEG
     return image.jpeg().toBuffer();
@@ -436,13 +441,11 @@ export class AIAnalyzer {
       });
 
       writeFileSync(filepath, JSON.stringify(contents, null, 2));
-      console.log(chalk.blue(`📄 请求内容已保存到: ${filepath}`));
+      logger.debug(`📄 请求内容已保存到: ${filepath}`);
     } catch (error) {
       if (this.options.verbose) {
-        console.log(
-          chalk.yellow(
-            `⚠️ 无法保存请求文件: ${error instanceof Error ? error.message : error}`,
-          ),
+        logger.warn(
+          `⚠️ 无法保存请求文件: ${error instanceof Error ? error.message : error}`,
         );
       }
     }
@@ -453,35 +456,31 @@ export class AIAnalyzer {
    */
   private handleAIError(error: unknown, imagePaths: string[]): void {
     if (this.options.verbose) {
-      console.log(chalk.red(`❌ AI 分析失败，错误详情:`));
+      logger.error(`❌ AI 分析失败，错误详情:`);
 
       if (error instanceof Error) {
-        console.log(chalk.red(`  类型: ${error.constructor.name}`));
-        console.log(chalk.red(`  消息: ${error.message}`));
+        logger.error(`  类型: ${error.constructor.name}`);
+        logger.error(`  消息: ${error.message}`);
         if (error.stack) {
-          console.log(chalk.red(`  堆栈:`));
-          console.log(chalk.gray(error.stack));
+          logger.error(`  堆栈:`);
+          logger.debug(error.stack);
         }
       } else {
-        console.log(chalk.red(`  未知错误: ${JSON.stringify(error, null, 2)}`));
+        logger.error(`  未知错误: ${JSON.stringify(error, null, 2)}`);
       }
 
-      console.log(chalk.red(`  相关文件: ${imagePaths.length} 个`));
+      logger.error(`  相关文件: ${imagePaths.length} 个`);
       imagePaths.forEach((path, index) => {
-        console.log(chalk.gray(`    ${index + 1}. ${path}`));
+        logger.debug(`    ${index + 1}. ${path}`);
       });
 
-      console.log(chalk.red(`  统计信息:`));
-      console.log(
-        chalk.gray(
-          `    文件总大小: ${(this.stats.totalSize / 1024 / 1024).toFixed(2)} MB`,
-        ),
+      logger.error(`  统计信息:`);
+      logger.debug(
+        `    文件总大小: ${(this.stats.totalSize / 1024 / 1024).toFixed(2)} MB`,
       );
-      console.log(chalk.gray(`    预估 Token: ${this.stats.estimatedTokens}`));
-      console.log(
-        chalk.gray(
-          `    发送数据: ${(this.stats.sentDataSize / 1024 / 1024).toFixed(2)} MB`,
-        ),
+      logger.debug(`    预估 Token: ${this.stats.estimatedTokens}`);
+      logger.debug(
+        `    发送数据: ${(this.stats.sentDataSize / 1024 / 1024).toFixed(2)} MB`,
       );
     }
   }

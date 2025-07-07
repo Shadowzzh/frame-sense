@@ -3,9 +3,9 @@
  */
 
 import { basename } from "node:path";
-import chalk from "chalk";
 import type { FrameSenseOptions } from "@/config";
 import type { ProcessResult } from "@/types";
+import { logger } from "@/utils/logger";
 
 /**
  * 显示处理结果
@@ -14,40 +14,34 @@ export function displayResults(
   results: ProcessResult[],
   options: FrameSenseOptions,
 ): void {
-  console.log();
-  console.log(chalk.bold("处理结果:"));
-  console.log();
+  logger.info("📋 处理结果:");
 
   const successful = results.filter((r) => r.success);
   const failed = results.filter((r) => !r.success);
 
   // 成功处理的文件
   if (successful.length > 0) {
-    console.log(chalk.green(`✓ 成功处理 ${successful.length} 个文件:`));
-    console.log();
+    logger.success(`✓ 成功处理 ${successful.length} 个文件:`);
 
     for (const result of successful) {
-      console.log(chalk.gray(`  原名: ${basename(result.originalPath)}`));
-      console.log(chalk.green(`  新名: ${result.newName}`));
-      console.log();
+      logger.info(`  原名: ${basename(result.originalPath)}`);
+      logger.success(`  新名: ${result.newName}`);
     }
   }
 
   // 失败处理的文件
   if (failed.length > 0) {
-    console.log(chalk.red(`✗ 失败 ${failed.length} 个文件:`));
-    console.log();
+    logger.fail(`✗ 失败 ${failed.length} 个文件:`);
 
     for (const result of failed) {
-      console.log(chalk.red(`  文件: ${basename(result.originalPath)}`));
-      console.log(chalk.red(`  错误: ${result.error}`));
-      console.log();
+      logger.error(`  文件: ${basename(result.originalPath)}`);
+      logger.error(`  错误: ${result.error}`);
     }
   }
 
   // 预览模式
   if (options.dryRun) {
-    console.log(chalk.yellow("这是预览模式，未执行实际重命名"));
+    logger.warn("这是预览模式，未执行实际重命名");
   }
 }
 

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import Conf from "conf";
+import type { LogLevel } from "@/utils/logger";
 
 /** 配置选项 */
 export interface FrameSenseOptions {
@@ -15,6 +16,8 @@ export interface FrameSenseOptions {
   dryRun: boolean;
   /** 显示详细调试信息 */
   verbose: boolean;
+  /** 日志级别 */
+  logLevel: LogLevel;
   /** API 密钥 */
   apiKey?: string;
   /** 模型 */
@@ -48,6 +51,7 @@ export class FrameSenseConfig {
         format: "semantic",
         dryRun: false,
         verbose: false,
+        logLevel: "info",
         model: "gemini-2.5-flash",
       },
       configFileMode: 0o600, // 仅所有者可读写

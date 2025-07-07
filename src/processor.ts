@@ -1,12 +1,12 @@
-import chalk from "chalk";
 import ora from "ora";
 import { AIAnalyzer } from "@/ai-analyzer";
 import type { FrameSenseOptions } from "@/config";
-import { processAllFiles } from "@/core/file-processor";
-import { categorizeFiles, getFileList } from "@/core/file-scanner";
+import { processAllFiles } from "@/file-processor";
 import { FileRenamer } from "@/file-renamer";
+import { categorizeFiles, getFileList } from "@/file-scanner";
 import { FrameExtractor } from "@/frame-extractor";
 import { checkFFmpegSuite, showFFmpegError } from "@/utils/ffmpeg-checker";
+import { configureLogger, logger } from "@/utils/logger";
 import { displayResults } from "@/utils/result-formatter";
 import { getSignalHandler } from "@/utils/signal-handler";
 import { displayStats } from "@/utils/stats-collector";
@@ -23,6 +23,13 @@ interface ProcessFilesOptions extends FrameSenseOptions {
  * @param options 配置选项
  */
 export async function processFiles(options: ProcessFilesOptions) {
+  // 配置日志系统
+  configureLogger({
+    level: options.verbose ? "verbose" : options.logLevel,
+    colorized: true,
+    timestamp: false,
+  });
+
   // 检查 FFmpeg 依赖
   const ffmpegCheckSpinner = ora("正在检查 FFmpeg 依赖...").start();
   const ffmpegCheck = await checkFFmpegSuite();
@@ -51,21 +58,18 @@ export async function processFiles(options: ProcessFilesOptions) {
     spinner.succeed(`发现 ${files.length} 个文件待处理`);
 
     if (options.verbose) {
-      console.log(chalk.blue("📋 详细模式已启用"));
-      console.log(
-        chalk.blue(`📁 处理目录: ${options.directory || "使用文件列表"}`),
-      );
-      console.log(chalk.blue(`🎯 命名格式: ${options.format}`));
-      console.log(chalk.blue(`🎬 帧数: ${options.frames}`));
-      console.log(chalk.blue(`🔄 预览模式: ${options.dryRun ? "是" : "否"}`));
-      console.log(chalk.blue(`🤖 模型: ${options.model}`));
+      logger.verbose("📋 详细模式已启用");
+      logger.verbose(`📁 处理目录: ${options.directory || "使用文件列表"}`);
+      logger.verbose(`🎯 命名格式: ${options.format}`);
+      logger.verbose(`🎬 帧数: ${options.frames}`);
+      logger.verbose(`🔄 预览模式: ${options.dryRun ? "是" : "否"}`);
+      logger.verbose(`🤖 模型: ${options.model}`);
     }
 
-    console.log(chalk.gray("文件列表:"));
+    logger.info("文件列表:");
     for (const file of files) {
-      console.log(chalk.gray(`  - ${file}`));
+      logger.info(`  - ${file}`);
     }
-    console.log();
 
     // 初始化帧提取器
     const frameExtractor = new FrameExtractor(options);
@@ -88,13 +92,9 @@ export async function processFiles(options: ProcessFilesOptions) {
     const categorizedFiles = categorizeFiles(files);
 
     if (options.verbose) {
-      console.log(chalk.blue("📊 文件分类统计:"));
-      console.log(
-        chalk.blue(`  - 图片文件: ${categorizedFiles.imageFiles.length} 个`),
-      );
-      console.log(
-        chalk.blue(`  - 视频文件: ${categorizedFiles.videoFiles.length} 个`),
-      );
+      logger.verbose("📊 文件分类统计:");
+      logger.verbose(`  - 图片文件: ${categorizedFiles.imageFiles.length} 个`);
+      logger.verbose(`  - 视频文件: ${categorizedFiles.videoFiles.length} 个`);
     }
 
     // 处理所有文件

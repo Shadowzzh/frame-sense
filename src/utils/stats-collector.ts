@@ -2,8 +2,8 @@
  * 统计收集器
  */
 
-import chalk from "chalk";
 import type { AIAnalyzer } from "@/ai-analyzer";
+import { logger } from "@/utils/logger";
 import { formatBytes } from "@/utils/result-formatter";
 
 /**
@@ -16,17 +16,9 @@ export function displayStats(aiAnalyzer: AIAnalyzer): void {
     return;
   }
 
-  console.log();
-  console.log(chalk.cyan("📊 AI 分析统计信息:"));
-  console.log();
-
-  console.log(chalk.gray(`  📁 处理文件数: ${stats.totalFiles} 个`));
-  console.log(chalk.gray(`  📏 文件总大小: ${formatBytes(stats.totalSize)}`));
-  console.log(
-    chalk.gray(`  🔢 预估 Token: ${stats.estimatedTokens.toLocaleString()}`),
-  );
-  console.log(
-    chalk.gray(`  📤 发送数据量: ${formatBytes(stats.sentDataSize)}`),
-  );
-  console.log();
+  logger.info("📊 AI 分析统计信息:");
+  logger.debug(`  📁 处理文件数: ${stats.totalFiles} 个`);
+  logger.debug(`  📏 文件总大小: ${formatBytes(stats.totalSize)}`);
+  logger.debug(`  🔢 预估 Token: ${stats.estimatedTokens.toLocaleString()}`);
+  logger.debug(`  📤 发送数据量: ${formatBytes(stats.sentDataSize)}`);
 }

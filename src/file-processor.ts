@@ -1,11 +1,139 @@
 /**
- * 视频处理器
+ * 文件处理器 - 统一处理入口
  */
 
 import { basename } from "node:path";
-import chalk from "chalk";
 import ora from "ora";
-import type { ProcessContext, ProcessResult } from "@/types";
+import type { CategorizedFiles, ProcessContext, ProcessResult } from "@/types";
+import { logger } from "@/utils/logger";
+
+/**
+ * 处理所有文件
+ */
+export async function processAllFiles(
+  files: CategorizedFiles,
+  context: ProcessContext,
+): Promise<ProcessResult[]> {
+  const { imageFiles, videoFiles } = files;
+  const results: ProcessResult[] = [];
+
+  // 如果没有任何文件，则返回空结果
+  if (imageFiles.length === 0 && videoFiles.length === 0) {
+    return results;
+  }
+
+  // 统一显示开始处理信息
+  const totalFiles = imageFiles.length + videoFiles.length;
+  logger.progress(`📋 开始处理 ${totalFiles} 个文件`);
+
+  if (imageFiles.length > 0) {
+    logger.debug(`  - 图片: ${imageFiles.length} 张`);
+  }
+  if (videoFiles.length > 0) {
+    logger.debug(`  - 视频: ${videoFiles.length} 个`);
+  }
+
+  // 处理图片文件
+  if (imageFiles.length > 0) {
+    logger.verbose("🖼️  开始处理图片文件...");
+    const imageResults = await processImages(imageFiles, context);
+    results.push(...imageResults);
+    logger.verbose(`✅ 图片处理完成，共处理 ${imageResults.length} 张`);
+  }
+
+  // 处理视频文件
+  if (videoFiles.length > 0) {
+    logger.verbose("🎬 开始处理视频文件...");
+    const videoResults = await processVideos(videoFiles, context);
+    results.push(...videoResults);
+    logger.verbose(`✅ 视频处理完成，共处理 ${videoResults.length} 个`);
+  }
+
+  return results;
+}
+
+/**
+ * 处理图片文件
+ */
+export async function processImages(
+  imageFiles: string[],
+  context: ProcessContext,
+): Promise<ProcessResult[]> {
+  const { aiAnalyzer, fileRenamer, options } = context;
+  const results: ProcessResult[] = [];
+
+  if (imageFiles.length === 0) {
+    return results;
+  }
+
+  logger.progress(`📸 开始处理 ${imageFiles.length} 张图片`);
+
+  const imageSpinner = ora(`🤖 AI 分析图片内容...`).start();
+
+  try {
+    // AI 分析
+    const analysis = await aiAnalyzer.analyzeImage(imageFiles);
+    // 如果分析结果包含 "|||",则将分析结果按 "|||" 分割
+    const descriptions = analysis.includes("|||")
+      ? analysis.split("|||")
+      : imageFiles.map(() => analysis);
+
+    imageSpinner.succeed(`✅ AI 分析完成`);
+
+    // 逐个重命名图片
+    const renameSpinner = ora(
+      `📝 重命名图片 (0/${imageFiles.length})...`,
+    ).start();
+
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
+      const fileAnalysis = descriptions[i] || analysis;
+
+      renameSpinner.text = `📝 重命名图片 (${i + 1}/${imageFiles.length})... ${basename(file)}`;
+
+      try {
+        const newName = fileRenamer.generateNewName(
+          file,
+          fileAnalysis,
+          options.format as "semantic" | "structured",
+        );
+
+        if (!options.dryRun) {
+          await fileRenamer.renameFile(file, newName);
+        }
+
+        results.push({
+          originalPath: file,
+          newName,
+          analysis: fileAnalysis,
+          success: true,
+        });
+      } catch (error) {
+        results.push({
+          originalPath: file,
+          error: error instanceof Error ? error.message : String(error),
+          success: false,
+        });
+      }
+    }
+
+    renameSpinner.succeed(`✅ 完成 ${imageFiles.length} 张图片重命名`);
+  } catch (error) {
+    imageSpinner.fail(
+      `❌ 图片处理失败: ${error instanceof Error ? error.message : error}`,
+    );
+
+    for (const file of imageFiles) {
+      results.push({
+        originalPath: file,
+        error: error instanceof Error ? error.message : String(error),
+        success: false,
+      });
+    }
+  }
+
+  return results;
+}
 
 /**
  * 处理视频文件
@@ -21,7 +149,7 @@ export async function processVideos(
     return results;
   }
 
-  console.log(chalk.blue(`\n🎬 开始处理 ${videoFiles.length} 个视频`));
+  logger.progress(`🎬 开始处理 ${videoFiles.length} 个视频`);
 
   const videoFramesMap = new Map<string, string[]>();
 

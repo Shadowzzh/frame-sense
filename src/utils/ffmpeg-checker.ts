@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import chalk from "chalk";
+import { logger } from "@/utils/logger";
 
 /**
  * FFmpeg 检查结果
@@ -159,37 +159,29 @@ export function showFFmpegError(result: {
   ffprobe: FFmpegCheckResult;
   allAvailable: boolean;
 }): void {
-  console.log(chalk.red("✗ FFmpeg 依赖检查失败"));
-  console.log();
+  logger.fail("✗ FFmpeg 依赖检查失败");
 
   if (!result.ffmpeg.isAvailable) {
-    console.log(chalk.red("  FFmpeg 不可用:"));
-    console.log(chalk.gray(`    ${result.ffmpeg.error}`));
-    console.log();
+    logger.error("  FFmpeg 不可用:");
+    logger.error(`    ${result.ffmpeg.error}`);
   }
 
   if (!result.ffprobe.isAvailable) {
-    console.log(chalk.red("  FFprobe 不可用:"));
-    console.log(chalk.gray(`    ${result.ffprobe.error}`));
-    console.log();
+    logger.error("  FFprobe 不可用:");
+    logger.error(`    ${result.ffprobe.error}`);
   }
 
-  console.log(chalk.yellow("安装说明:"));
-  console.log();
-  console.log(chalk.white("  macOS (使用 Homebrew):"));
-  console.log(chalk.gray("    brew install ffmpeg"));
-  console.log();
-  console.log(chalk.white("  Ubuntu/Debian:"));
-  console.log(chalk.gray("    sudo apt update"));
-  console.log(chalk.gray("    sudo apt install ffmpeg"));
-  console.log();
-  console.log(chalk.white("  CentOS/RHEL/Fedora:"));
-  console.log(chalk.gray("    sudo dnf install ffmpeg"));
-  console.log();
-  console.log(chalk.white("  Windows:"));
-  console.log(chalk.gray("    从 https://ffmpeg.org/download.html 下载"));
-  console.log(chalk.gray("    或使用 Chocolatey: choco install ffmpeg"));
-  console.log();
+  logger.warn("🛠️ 安装说明:");
+  logger.info("  macOS (使用 Homebrew):");
+  logger.info("    brew install ffmpeg");
+  logger.info("  Ubuntu/Debian:");
+  logger.info("    sudo apt update");
+  logger.info("    sudo apt install ffmpeg");
+  logger.info("  CentOS/RHEL/Fedora:");
+  logger.info("    sudo dnf install ffmpeg");
+  logger.info("  Windows:");
+  logger.info("    从 https://ffmpeg.org/download.html 下载");
+  logger.info("    或使用 Chocolatey: choco install ffmpeg");
 }
 
 /**
@@ -201,8 +193,7 @@ export function showFFmpegSuccess(result: {
   ffprobe: FFmpegCheckResult;
   allAvailable: boolean;
 }): void {
-  console.log(chalk.green("✓ FFmpeg 依赖检查通过"));
-  console.log(chalk.gray(`  FFmpeg 版本: ${result.ffmpeg.version}`));
-  console.log(chalk.gray(`  FFprobe 版本: ${result.ffprobe.version}`));
-  console.log();
+  logger.success("✓ FFmpeg 依赖检查通过");
+  logger.debug(`  FFmpeg 版本: ${result.ffmpeg.version}`);
+  logger.debug(`  FFprobe 版本: ${result.ffprobe.version}`);
 }

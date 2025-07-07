@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
-import chalk from "chalk";
 import type { FrameSenseOptions } from "@/config";
 import { checkFFmpegSuite } from "@/utils/ffmpeg-checker";
+import { logger } from "@/utils/logger";
 
 /**
  * 帧提取器
@@ -35,8 +35,8 @@ export class FrameExtractor {
     }
 
     if (this.options?.verbose) {
-      console.log(chalk.blue(`🎬 开始提取视频帧: ${videoPath}`));
-      console.log(chalk.blue(`🎯 提取帧数: ${frameCount}`));
+      logger.verbose(`🎬 开始提取视频帧: ${videoPath}`);
+      logger.verbose(`🎯 提取帧数: ${frameCount}`);
     }
 
     await this.ensureTempDir();
@@ -47,7 +47,7 @@ export class FrameExtractor {
     const frameDir = join(this.tempDir, randomUUID());
 
     if (this.options?.verbose) {
-      console.log(chalk.blue(`📁 临时目录: ${frameDir}`));
+      logger.verbose(`📁 临时目录: ${frameDir}`);
     }
 
     // 创建临时帧目录
@@ -59,17 +59,15 @@ export class FrameExtractor {
       const duration = await this.getVideoDuration(videoPath);
 
       if (this.options?.verbose) {
-        console.log(chalk.blue(`⏱️  视频时长: ${duration.toFixed(2)} 秒`));
+        logger.verbose(`⏱️  视频时长: ${duration.toFixed(2)} 秒`);
       }
 
       // 计算关键帧时间点
       const timePoints = this.calculateTimePoints(duration, frameCount);
 
       if (this.options?.verbose) {
-        console.log(
-          chalk.blue(
-            `📍 帧时间点: ${timePoints.map((t) => t.toFixed(2)).join(", ")} 秒`,
-          ),
+        logger.verbose(
+          `📍 帧时间点: ${timePoints.map((t) => t.toFixed(2)).join(", ")} 秒`,
         );
       }
 
@@ -84,9 +82,7 @@ export class FrameExtractor {
         // 提取帧
         if (timePoint !== undefined) {
           if (this.options?.verbose) {
-            console.log(
-              chalk.blue(`🎞️  提取第 ${i + 1} 帧 (${timePoint.toFixed(2)}s)`),
-            );
+            logger.verbose(`🎞️  提取第 ${i + 1} 帧 (${timePoint.toFixed(2)}s)`);
           }
           await this.extractFrameAtTime(videoPath, timePoint, framePath);
           framePaths.push(framePath);
@@ -94,7 +90,7 @@ export class FrameExtractor {
       }
 
       if (this.options?.verbose) {
-        console.log(chalk.blue(`✅ 帧提取完成，共 ${framePaths.length} 帧`));
+        logger.verbose(`✅ 帧提取完成，共 ${framePaths.length} 帧`);
       }
 
       return framePaths;
@@ -188,7 +184,7 @@ export class FrameExtractor {
       });
 
       ffprobe.stderr.on("data", (data) => {
-        console.error(`ffprobe stderr: ${data}`);
+        logger.error(`ffprobe stderr: ${data}`);
       });
 
       ffprobe.on("close", (code) => {
