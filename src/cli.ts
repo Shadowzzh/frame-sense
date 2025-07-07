@@ -25,9 +25,7 @@ const packageJson = JSON.parse(
 // 配置 CLI
 program
   .name("frame-sense")
-  .description(
-    "一个结合 FFmpeg 和图像识别模型的命令行工具，用于自动提取关键帧并为视频文件生成语义化文件名。",
-  )
+  .description(packageJson.description)
   .version(packageJson.version);
 
 // 主命令

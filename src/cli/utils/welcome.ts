@@ -17,6 +17,8 @@ export function showWelcome() {
     ),
   );
   console.log();
-  console.log(chalk.gray("基于 AI 的智能视频重命名工具"));
+  console.log(
+    chalk.gray("一个结合 FFmpeg 和 Google Gemini AI 的智能视频重命名工具"),
+  );
   console.log();
 }

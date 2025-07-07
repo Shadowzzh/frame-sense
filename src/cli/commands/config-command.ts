@@ -5,6 +5,7 @@
 import { Command } from "commander";
 import {
   handleConfigSet,
+  handleConfigShow,
   handleConfigTest,
 } from "@/cli/handlers/config-handler";
 
@@ -18,9 +19,15 @@ export function createConfigCommand(): Command {
   configCommand
     .command("set")
     .description("设置配置项")
-    .argument("<key>", "配置键 (apiKey, model)")
+    .argument("<key>", "配置键 (apiKey, model, frames, format, dryRun)")
     .argument("<value>", "配置值")
     .action(handleConfigSet);
+
+  // config show 子命令
+  configCommand
+    .command("show")
+    .description("显示当前配置")
+    .action(handleConfigShow);
 
   // config test 子命令
   configCommand

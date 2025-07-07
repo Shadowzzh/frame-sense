@@ -23,6 +23,7 @@ interface ProcessFilesOptions extends FrameSenseOptions {
  */
 export async function processFiles(options: ProcessFilesOptions) {
   const spinner = ora("正在扫描文件...").start();
+  // 初始化信号处理器
   const signalHandler = getSignalHandler();
 
   try {
@@ -42,7 +43,7 @@ export async function processFiles(options: ProcessFilesOptions) {
     }
     console.log();
 
-    // 初始化处理器
+    // 初始化帧提取器
     const frameExtractor = new FrameExtractor();
 
     // 注册清理函数 - 清理临时帧文件
@@ -50,6 +51,7 @@ export async function processFiles(options: ProcessFilesOptions) {
       frameExtractor.cleanup();
     };
 
+    // 注册清理函数
     signalHandler.addCleanupFunction(cleanupFrames);
 
     // 初始化 AI 分析器
@@ -61,6 +63,7 @@ export async function processFiles(options: ProcessFilesOptions) {
     // 按文件类型分组
     const categorizedFiles = categorizeFiles(files);
 
+    // 处理所有文件
     const results = await processAllFiles(categorizedFiles, {
       frameExtractor,
       aiAnalyzer,
