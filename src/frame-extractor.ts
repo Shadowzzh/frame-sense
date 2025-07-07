@@ -211,9 +211,20 @@ export class FrameExtractor {
 
   /**
    * 计算时间点
-   * @param duration 视频时长
-   * @param frameCount 帧数
-   * @returns 时间点
+   * 算法逻辑：
+   * - 单帧模式 (frameCount = 1)：选择视频中点时间作为提取点
+   * - 多帧模式 (frameCount > 1)：
+   *   - 避开视频开头和结尾各 10% 的时长（避免黑屏或无意义内容）
+   *   - 在剩余 80% 的时长内均匀分布时间点
+   *   - 计算公式：margin = duration * 0.1, interval = usableDuration / (frameCount - 1)
+   *
+   * 举例：视频时长 100 秒，提取 3 帧
+   * - 边距：10 秒，可用时长：80 秒，间隔：40 秒
+   * - 时间点：[10, 50, 90] 秒
+   *
+   * @param duration 视频时长（秒）
+   * @param frameCount 需要提取的帧数
+   * @returns 时间点数组（秒）
    */
   private calculateTimePoints(duration: number, frameCount: number): number[] {
     const timePoints: number[] = [];
@@ -224,6 +235,7 @@ export class FrameExtractor {
     } else {
       // 多帧：均匀分布，避免开头和结尾
       const margin = duration * 0.1; // 10% 边距
+      // 可用时长
       const usableDuration = duration - 2 * margin;
       const interval = usableDuration / (frameCount - 1);
 

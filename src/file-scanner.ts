@@ -14,11 +14,18 @@ import {
 } from "@/constants";
 import type { CategorizedFiles } from "@/types";
 
+interface MainCommandOptions extends FrameSenseOptions {
+  /** 文件目录 */
+  directory?: string;
+  /** 文件列表 */
+  files?: string[];
+}
+
 /**
  * 获取文件列表
  */
 export async function getFileList(
-  options: FrameSenseOptions & { directory?: string; files?: string[] },
+  options: MainCommandOptions,
 ): Promise<string[]> {
   const files: string[] = [];
 
@@ -69,6 +76,7 @@ export function categorizeFiles(files: string[]): CategorizedFiles {
   const videoFiles: string[] = [];
 
   for (const file of files) {
+    // 文件扩展名
     const fileExtension = extname(file).toLowerCase().slice(1); // 去掉开头的 .
     if (IMAGE_EXTENSIONS.includes(fileExtension as ImageExtension)) {
       imageFiles.push(file);
