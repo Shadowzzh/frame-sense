@@ -4,6 +4,9 @@
 
 本文件为 Claude Code (claude.ai/code) 在此仓库中处理代码时提供指导。
 
+## 代码组织
+- 应当保持“小而美”的代码组件和架构，但保持可读性与优雅。
+
 ## 项目概述
 
 Frame-Sense 是一个基于 AI 的智能视频重命名 CLI 命令行工具，使用 TypeScript 和 Node.js 构建。该工具结合 FFmpeg 和 Google Gemini AI 模型来自动提取视频关键帧，分析图像内容，并生成语义化的文件名。

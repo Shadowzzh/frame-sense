@@ -59,8 +59,8 @@ export type SupportedExtension = (typeof SUPPORTED_EXTENSIONS)[number];
 
 /** AI 分析器配置常量 */
 export const AI_ANALYZER_CONFIG = {
-  /** 批量处理最大图片数量 */
-  MAX_BATCH_SIZE: 3600,
+  /** 批量处理最大图片数量 - 优化到40张，平衡性能和token消耗 */
+  MAX_BATCH_SIZE: 40,
   /** 图片压缩阈值 - 文件大小 (KB) */
   IMAGE_SIZE_THRESHOLD: 500 * 1024,
   /** 图片压缩阈值 - 最大宽度 */
@@ -71,4 +71,8 @@ export const AI_ANALYZER_CONFIG = {
   IMAGE_QUALITY: 75,
   /** 默认 AI 模型 */
   DEFAULT_MODEL: "gemini-2.5-flash",
+  /** Token 限制配置 - 提高到15000以支持更大批次 */
+  MAX_TOKENS_PER_REQUEST: 15000,
+  /** 平均每张图片的 token 估算 - 基于实际测试，稍微降低估算 */
+  AVG_TOKENS_PER_IMAGE: 200,
 } as const;

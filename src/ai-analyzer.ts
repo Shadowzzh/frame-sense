@@ -13,6 +13,7 @@ import type { FrameSenseOptions } from "@/config";
 import { AI_ANALYZER_CONFIG, IMAGE_EXTENSIONS } from "@/constants";
 import { AI_PROMPTS } from "@/prompts";
 import type { AnalysisRequest, ImageData } from "@/types";
+import { AIBatchProcessor } from "@/utils/ai-batch-processor";
 import { logger } from "@/utils/logger";
 
 /**
@@ -22,6 +23,7 @@ export class AIAnalyzer {
   private genAI: GoogleGenAI;
   private options: FrameSenseOptions;
   private statsCollector: AnalysisStatsCollector;
+  private batchProcessor: AIBatchProcessor;
 
   constructor(options: FrameSenseOptions) {
     this.options = options;
@@ -36,6 +38,10 @@ export class AIAnalyzer {
     }
 
     this.genAI = new GoogleGenAI({ apiKey });
+    this.batchProcessor = new AIBatchProcessor(
+      this.performAnalysis.bind(this),
+      options.verbose || false,
+    );
   }
 
   /**
@@ -50,6 +56,12 @@ export class AIAnalyzer {
    */
   async analyzeImage(imagePaths: string[]): Promise<string> {
     this.validateImagePaths(imagePaths);
+
+    // 如果图片数量超过批量处理限制，使用批量处理器
+    if (imagePaths.length > AI_ANALYZER_CONFIG.MAX_BATCH_SIZE) {
+      return this.batchProcessor.processBatch(imagePaths);
+    }
+
     return this.performAnalysis({
       imagePaths,
       promptText: AI_PROMPTS.IMAGE_ANALYSIS,
@@ -91,11 +103,6 @@ export class AIAnalyzer {
    * 验证图片路径
    */
   private validateImagePaths(imagePaths: string[]): void {
-    if (imagePaths.length > AI_ANALYZER_CONFIG.MAX_BATCH_SIZE) {
-      throw new Error(
-        `批量处理最多支持${AI_ANALYZER_CONFIG.MAX_BATCH_SIZE}张图片`,
-      );
-    }
     if (imagePaths.length === 0) {
       throw new Error("图片路径不能为空");
     }
@@ -111,6 +118,13 @@ export class AIAnalyzer {
     });
     if (unsupportedFiles.length > 0) {
       throw new Error(`不支持的图片格式: ${unsupportedFiles.join(", ")}`);
+    }
+
+    // 显示批量处理信息
+    if (imagePaths.length > AI_ANALYZER_CONFIG.MAX_BATCH_SIZE) {
+      logger.info(
+        `📊 图片数量 (${imagePaths.length}) 超过单批处理限制 (${AI_ANALYZER_CONFIG.MAX_BATCH_SIZE})，将使用智能批量处理`,
+      );
     }
   }
 
@@ -191,17 +205,26 @@ export class AIAnalyzer {
 
   /**
    * 解析多个结果（用于图片批量分析）
+   * 解析 AI 返回的多个描述结果，支持结构化解析和行分割解析
+   * @param responseText - AI 返回的响应文本
+   * @param expectedCount - 期望的描述数量
+   * @returns 解析后的描述结果，多个结果用 "|||" 分隔
    */
   private parseMultipleResults(
     responseText: string,
     expectedCount: number,
   ): string {
+    // 匹配结构化格式的描述 (例如: DESC1: 描述内容)
     const descMatches = responseText.match(/DESC\d+:\s*(.+?)(?=\n|$)/g);
+
+    // 如果匹配到结构化格式的描述
     if (descMatches && descMatches.length > 0) {
+      // 提取描述内容，移除 DESC 前缀和编号
       const descriptions = descMatches.map((match) =>
         match.replace(/^DESC\d+:\s*/, "").trim(),
       );
 
+      // 详细日志记录解析结果
       if (this.options.verbose) {
         logger.info(
           `📊 描述数量: ${descriptions.length}, 图片数量: ${expectedCount}`,
@@ -209,25 +232,29 @@ export class AIAnalyzer {
         this.logDescriptions(descriptions);
       }
 
+      // 如果描述数量与期望数量完全匹配，直接返回
       if (descriptions.length === expectedCount) {
         return descriptions.join("|||");
       }
 
+      // 如果有描述但数量不匹配，尝试调整
       if (descriptions.length > 0) {
         return this.adjustDescriptions(descriptions, expectedCount);
       }
     }
 
-    // 尝试按行分割
+    // 备用解析方案：按行分割文本
     const lines = responseText
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+      .split("\n") // 按换行符分割
+      .map((line) => line.trim()) // 去除每行首尾空白
+      .filter((line) => line.length > 0); // 过滤空行
 
+    // 如果行数足够，取前 expectedCount 行
     if (lines.length >= expectedCount) {
       return lines.slice(0, expectedCount).join("|||");
     }
 
+    // 如果都无法解析，返回原始文本
     return responseText;
   }
 
@@ -468,5 +495,12 @@ export class AIAnalyzer {
         `API 连接测试失败: ${error instanceof Error ? error.message : error}`,
       );
     }
+  }
+
+  /**
+   * 获取批量处理统计信息
+   */
+  getBatchStats() {
+    return this.batchProcessor.getBatchStats();
   }
 }
