@@ -68,17 +68,13 @@ export async function processImages(
 
   logger.progress(`📸 开始处理 ${imageFiles.length} 张图片`);
 
-  const imageSpinner = ora(`🤖 AI 分析图片内容...`).start();
-
   try {
-    // AI 分析（现在会自动处理 spinner 模式）
+    // AI 分析
     const analysis = await aiAnalyzer.analyzeImage(imageFiles);
     // 如果分析结果包含 "|||",则将分析结果按 "|||" 分割
     const descriptions = analysis.includes("|||")
       ? analysis.split("|||")
       : imageFiles.map(() => analysis);
-
-    imageSpinner.succeed(`✅ AI 分析完成`);
 
     // 逐个重命名图片
     const renameSpinner = ora(
@@ -119,7 +115,7 @@ export async function processImages(
 
     renameSpinner.succeed(`✅ 完成 ${imageFiles.length} 张图片重命名`);
   } catch (error) {
-    imageSpinner.fail(
+    logger.error(
       `❌ 图片处理失败: ${error instanceof Error ? error.message : error}`,
     );
 
@@ -187,8 +183,6 @@ export async function processVideos(
 
   // AI 批量分析并重命名视频文件
   if (videoFramesMap.size > 0) {
-    const analysisSpinner = ora(`🤖 AI 批量分析视频内容...`).start();
-
     try {
       // 收集所有帧文件路径进行批量分析
       const allFrames: string[] = [];
@@ -199,13 +193,13 @@ export async function processVideos(
         videoFramesCounts.push(frames.length);
       }
 
-      // 单次 AI API 调用，批量分析所有视频帧（现在会自动处理 spinner 模式）
+      // 单次 AI API 调用，批量分析所有视频帧
       const batchAnalysis = await aiAnalyzer.analyzeImage(allFrames);
 
       // 解析批量分析结果
       const analysisResults = batchAnalysis.split("|||");
 
-      analysisSpinner.text = `🤖 处理分析结果与重命名...`;
+      logger.progress(`🤖 处理分析结果与重命名...`);
 
       // 按视频分组处理分析结果
       let resultIndex = 0;
@@ -243,11 +237,11 @@ export async function processVideos(
         }
       }
 
-      analysisSpinner.succeed(
+      logger.progress(
         `✅ 完成 ${videoFramesMap.size} 个视频AI批量分析与重命名`,
       );
     } catch (error) {
-      analysisSpinner.fail("❌ AI 批量分析失败");
+      logger.error("❌ AI 批量分析失败");
 
       // 如果批量分析失败，为每个视频添加错误结果
       for (const [videoFile] of videoFramesMap) {

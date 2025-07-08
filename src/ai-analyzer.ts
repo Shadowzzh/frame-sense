@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Content } from "@google/genai";
 import { GoogleGenAI } from "@google/genai";
+import ora from "ora";
 import sharp from "sharp";
 import {
   type AnalysisStats,
@@ -21,8 +22,6 @@ export class AIAnalyzer {
   private genAI: GoogleGenAI;
   private options: FrameSenseOptions;
   private statsCollector: AnalysisStatsCollector;
-  private verboseBuffer: string[] = [];
-  private isSpinnerMode: boolean = false;
 
   constructor(options: FrameSenseOptions) {
     this.options = options;
@@ -51,49 +50,11 @@ export class AIAnalyzer {
    */
   async analyzeImage(imagePaths: string[]): Promise<string> {
     this.validateImagePaths(imagePaths);
-
-    // 检查是否需要在这里启用 spinner 模式
-    const shouldEnableSpinner = !this.isSpinnerMode;
-    if (shouldEnableSpinner) {
-      this.enableSpinnerMode();
-    }
-
-    try {
-      const result = await this.performAnalysis({
-        imagePaths,
-        promptText: AI_PROMPTS.IMAGE_ANALYSIS,
-        parseMultipleResults: true,
-      });
-
-      return result;
-    } finally {
-      // 如果是在这里启用的 spinner 模式，需要在这里禁用
-      if (shouldEnableSpinner) {
-        this.disableSpinnerMode();
-      }
-    }
-  }
-
-  /**
-   * 测试 API 连接
-   */
-  async testConnection(): Promise<string> {
-    try {
-      const result = await this.genAI.models.generateContent({
-        model: this.options.model || AI_ANALYZER_CONFIG.DEFAULT_MODEL,
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: "请简短回复'连接成功'来确认API工作正常。" }],
-          },
-        ],
-      });
-      return result.text?.trim() || "API 响应为空";
-    } catch (error) {
-      throw new Error(
-        `API 连接测试失败: ${error instanceof Error ? error.message : error}`,
-      );
-    }
+    return this.performAnalysis({
+      imagePaths,
+      promptText: AI_PROMPTS.IMAGE_ANALYSIS,
+      parseMultipleResults: true,
+    });
   }
 
   /**
@@ -101,7 +62,12 @@ export class AIAnalyzer {
    */
   private async performAnalysis(request: AnalysisRequest): Promise<string> {
     try {
-      this.prepareAnalysis(request.imagePaths, request.promptText);
+      // 分析 AI 数据
+      this.statsCollector.reset();
+      this.statsCollector.collectFileStats(request.imagePaths);
+
+      this.logAnalysisStart(request.imagePaths, request.promptText);
+
       const images = await this.processImages(request.imagePaths);
       const response = await this.sendAnalysisRequest(
         images,
@@ -149,15 +115,6 @@ export class AIAnalyzer {
   }
 
   /**
-   * 准备分析
-   */
-  private prepareAnalysis(imagePaths: string[], promptText: string): void {
-    this.statsCollector.reset();
-    this.statsCollector.collectFileStats(imagePaths);
-    this.logAnalysisStart(imagePaths, promptText);
-  }
-
-  /**
    * 处理图片
    */
   private async processImages(imagePaths: string[]): Promise<ImageData[]> {
@@ -165,7 +122,9 @@ export class AIAnalyzer {
     const optimizedBuffers: Buffer[] = [];
 
     for (const path of imagePaths) {
-      this.logVerbose(`🖼️  正在优化: ${path}`);
+      if (this.options.verbose) {
+        logger.info(`🖼️  正在优化: ${path}`);
+      }
       const optimizedBuffer = await this.optimizeImage(path);
       optimizedBuffers.push(optimizedBuffer);
 
@@ -198,12 +157,18 @@ export class AIAnalyzer {
 
     this.logRequestDetails(contents, images.length);
 
-    const result = await this.genAI.models.generateContent({
-      model: this.options.model || AI_ANALYZER_CONFIG.DEFAULT_MODEL,
-      contents,
-    });
-
-    return result.text || "";
+    const spinner = ora("🤖 AI 分析图片内容...").start();
+    try {
+      const result = await this.genAI.models.generateContent({
+        model: this.options.model || AI_ANALYZER_CONFIG.DEFAULT_MODEL,
+        contents,
+      });
+      spinner.stop();
+      return result.text || "";
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
   }
 
   /**
@@ -214,8 +179,10 @@ export class AIAnalyzer {
     parseMultipleResults: boolean,
     expectedCount: number,
   ): string {
-    this.logVerbose(`✅ AI 分析完成，响应长度: ${responseText.length} 字符`);
-    this.logVerbose(`📄 AI 响应内容:\n---\n${responseText}\n---`);
+    if (this.options.verbose) {
+      logger.info(`✅ AI 分析完成，响应长度: ${responseText.length} 字符`);
+      logger.info(`📄 AI 响应内容:\n---\n${responseText}\n---`);
+    }
 
     return parseMultipleResults
       ? this.parseMultipleResults(responseText, expectedCount)
@@ -235,10 +202,12 @@ export class AIAnalyzer {
         match.replace(/^DESC\d+:\s*/, "").trim(),
       );
 
-      this.logVerbose(
-        `📊 描述数量: ${descriptions.length}, 图片数量: ${expectedCount}`,
-      );
-      this.logDescriptions(descriptions);
+      if (this.options.verbose) {
+        logger.info(
+          `📊 描述数量: ${descriptions.length}, 图片数量: ${expectedCount}`,
+        );
+        this.logDescriptions(descriptions);
+      }
 
       if (descriptions.length === expectedCount) {
         return descriptions.join("|||");
@@ -278,17 +247,21 @@ export class AIAnalyzer {
       width > AI_ANALYZER_CONFIG.IMAGE_MAX_WIDTH ||
       height > AI_ANALYZER_CONFIG.IMAGE_MAX_HEIGHT;
 
-    this.logVerbose(`  📐 图片尺寸: ${width}x${height}`);
-    this.logVerbose(`  📏 文件大小: ${(fileSize / 1024).toFixed(2)} KB`);
+    if (this.options.verbose) {
+      logger.info(`  📐 图片尺寸: ${width}x${height}`);
+      logger.info(`  📏 文件大小: ${(fileSize / 1024).toFixed(2)} KB`);
+    }
 
     if (shouldOptimize) {
       const { targetWidth, targetHeight } = this.calculateTargetSize(
         width,
         height,
       );
-      this.logVerbose(
-        `  🔧 需要优化: 压缩到 ${targetWidth}x${targetHeight}, 质量 ${AI_ANALYZER_CONFIG.IMAGE_QUALITY}%`,
-      );
+      if (this.options.verbose) {
+        logger.info(
+          `  🔧 需要优化: 压缩到 ${targetWidth}x${targetHeight}, 质量 ${AI_ANALYZER_CONFIG.IMAGE_QUALITY}%`,
+        );
+      }
 
       return image
         .resize(targetWidth, targetHeight, {
@@ -299,7 +272,9 @@ export class AIAnalyzer {
         .toBuffer();
     }
 
-    this.logVerbose(`  ✅ 无需优化: 直接转换为 JPEG`);
+    if (this.options.verbose) {
+      logger.info(`  ✅ 无需优化: 直接转换为 JPEG`);
+    }
     return image.jpeg().toBuffer();
   }
 
@@ -331,48 +306,17 @@ export class AIAnalyzer {
     return { targetWidth, targetHeight };
   }
 
-  /**
-   * 日志辅助方法
-   */
-  private logVerbose(message: string): void {
-    if (this.options.verbose) {
-      if (this.isSpinnerMode) {
-        // 在 spinner 模式下缓存日志
-        this.verboseBuffer.push(message);
-      } else {
-        logger.verbose(message);
-      }
-    }
-  }
-
-  /**
-   * 启用 spinner 模式
-   */
-  enableSpinnerMode(): void {
-    this.isSpinnerMode = true;
-    this.verboseBuffer = [];
-  }
-
-  /**
-   * 禁用 spinner 模式并输出缓存的日志
-   */
-  disableSpinnerMode(): void {
-    this.isSpinnerMode = false;
-    if (this.verboseBuffer.length > 0) {
-      this.verboseBuffer.forEach((msg) => logger.verbose(msg));
-      this.verboseBuffer = [];
-    }
-  }
-
   private logAnalysisStart(imagePaths: string[], promptText: string): void {
-    this.logVerbose(`🤖 开始 AI 分析，共 ${imagePaths.length} 个文件`);
-    const stats = this.statsCollector.getStats();
-    const sizeText =
-      stats.totalSize > 0
-        ? `${(stats.totalSize / 1024 / 1024).toFixed(2)} MB`
-        : "0 B";
-    this.logVerbose(`📊 文件统计: ${imagePaths.length} 个，总大小 ${sizeText}`);
-    this.logVerbose(`📝 使用的提示词:\n---\n${promptText}\n---`);
+    if (this.options.verbose) {
+      logger.info(`🤖 开始 AI 分析，共 ${imagePaths.length} 个文件`);
+      const stats = this.statsCollector.getStats();
+      const sizeText =
+        stats.totalSize > 0
+          ? `${(stats.totalSize / 1024 / 1024).toFixed(2)} MB`
+          : "0 B";
+      logger.info(`📊 文件统计: ${imagePaths.length} 个，总大小 ${sizeText}`);
+      logger.info(`📝 使用的提示词:\n---\n${promptText}\n---`);
+    }
   }
 
   private updateAnalysisStats(
@@ -383,28 +327,30 @@ export class AIAnalyzer {
     this.statsCollector.updateOptimizedSize(optimizedBuffers);
     this.statsCollector.collectDataStats(base64Data, "");
     this.statsCollector.estimateTokens(base64Data, "");
-    this.logVerbose(
-      `📊 完整统计信息:\n${this.statsCollector.getFormattedStats()}`,
-    );
+    if (this.options.verbose) {
+      logger.info(
+        `📊 完整统计信息:\n${this.statsCollector.getFormattedStats()}`,
+      );
+    }
   }
 
   private logRequestDetails(contents: Content[], imageCount: number): void {
-    this.logVerbose(
-      `🚀 发送请求到 ${this.options.model || AI_ANALYZER_CONFIG.DEFAULT_MODEL} 模型`,
-    );
-    this.logVerbose(
-      `📋 请求结构:\n  - 文本部分: 1 个 (提示词)\n  - 图片部分: ${imageCount} 个\n  - 总计内容块: ${contents.length} 个`,
-    );
     if (this.options.verbose) {
+      logger.info(
+        `🚀 发送请求到 ${this.options.model || AI_ANALYZER_CONFIG.DEFAULT_MODEL} 模型`,
+      );
+      logger.info(
+        `📋 请求结构:\n  - 文本部分: 1 个 (提示词)\n  - 图片部分: ${imageCount} 个\n  - 总计内容块: ${contents.length} 个`,
+      );
       this.writeRequestToFile(contents);
     }
   }
 
   private logDescriptions(descriptions: string[]): void {
     if (this.options.verbose) {
-      this.logVerbose(`🔍 解析到的描述:`);
+      logger.info(`🔍 解析到的描述:`);
       descriptions.forEach((desc, index) => {
-        this.logVerbose(`  ${index + 1}. ${desc}`);
+        logger.info(`  ${index + 1}. ${desc}`);
       });
     }
   }
@@ -462,11 +408,15 @@ export class AIAnalyzer {
       }));
 
       writeFileSync(filepath, JSON.stringify(contents, null, 2));
-      this.logVerbose(`📄 请求内容已保存到: ${filepath}`);
+      if (this.options.verbose) {
+        logger.info(`📄 请求内容已保存到: ${filepath}`);
+      }
     } catch (error) {
-      this.logVerbose(
-        `⚠️ 无法保存请求文件: ${error instanceof Error ? error.message : error}`,
-      );
+      if (this.options.verbose) {
+        logger.warn(
+          `⚠️ 无法保存请求文件: ${error instanceof Error ? error.message : error}`,
+        );
+      }
     }
   }
 
@@ -496,5 +446,27 @@ export class AIAnalyzer {
 
     logger.error(`  统计信息:`);
     logger.debug(this.statsCollector.getDebugInfo());
+  }
+
+  /**
+   * 测试 API 连接
+   */
+  async testConnection(): Promise<string> {
+    try {
+      const result = await this.genAI.models.generateContent({
+        model: this.options.model || AI_ANALYZER_CONFIG.DEFAULT_MODEL,
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: "请简短回复'连接成功'来确认API工作正常。" }],
+          },
+        ],
+      });
+      return result.text?.trim() || "API 响应为空";
+    } catch (error) {
+      throw new Error(
+        `API 连接测试失败: ${error instanceof Error ? error.message : error}`,
+      );
+    }
   }
 }
