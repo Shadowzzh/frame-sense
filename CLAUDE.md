@@ -27,14 +27,12 @@ Frame-Sense 是一个基于 AI 的智能视频重命名 CLI 命令行工具，�
 - `sharp` 0.34.2 - 图像处理
 - `ora` 8.1.1 - 终端加载动画
 - `conf` 14.0.0 - 配置管理
-- `cli-progress` 3.12.0 - 进度条显示
 - `undici` 7.11.0 - HTTP 客户端
 
 ### 开发工具
 - `@biomejs/biome` 2.0.6 - 代码格式化和检查
 - `tsx` 4.19.2 - TypeScript 执行器
 - `conventional-changelog-cli` 5.0.0 - 变更日志生成
-- `@types/cli-progress` 3.11.6 - 进度条类型定义
 - `@types/node` 22.10.1 - Node.js 类型定义
 - `@types/sharp` 0.31.1 - Sharp 类型定义
 
@@ -55,32 +53,6 @@ Frame-Sense 是一个基于 AI 的智能视频重命名 CLI 命令行工具，�
 - `npm run changelog`: 生成变更日志
 - `npm run pub`: 发布到 npm 公共仓库
 
-## 项目架构
-
-```
-src/
-├── cli.ts                      # CLI 入口文件
-├── ai-analyzer.ts              # AI 分析器
-├── analysis-stats-collector.ts # 分析统计收集器
-├── config.ts                   # 配置管理
-├── constants.ts                # 常量定义
-├── errors.ts                   # 错误处理
-├── file-processor.ts           # 文件处理器
-├── file-renamer.ts             # 文件重命名器
-├── file-scanner.ts             # 文件扫描器
-├── frame-extractor.ts          # 视频帧提取器
-├── processor.ts                # 主处理器
-├── prompts.ts                  # AI 提示词
-├── welcome.ts                  # 欢迎界面
-├── types/                      # TypeScript 类型定义
-│   └── index.ts
-└── utils/                      # 工具函数
-    ├── ffmpeg-checker.ts       # FFmpeg 依赖检查
-    ├── logger.ts               # 日志管理
-    ├── result-formatter.ts     # 结果格式化
-    ├── signal-handler.ts       # 信号处理
-    └── stats-collector.ts      # 统计收集器
-```
 
 ## 核心功能
 

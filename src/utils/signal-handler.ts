@@ -3,7 +3,6 @@
  */
 
 import chalk from "chalk";
-import ora from "ora";
 
 /**
  * 信号处理器
@@ -28,7 +27,7 @@ export class SignalHandler {
     if (!SignalHandler.instance) {
       SignalHandler.instance = new SignalHandler();
     }
-    return SignalHandler.instance;
+    return SignalHandler.instance; //
   }
 
   /**
@@ -78,34 +77,24 @@ export class SignalHandler {
   /**
    * 处理关闭信号
    */
-  private async handleShutdown(signal: string) {
+  private async handleShutdown(_signal: string) {
     if (this.isShuttingDown) {
-      console.log(chalk.yellow("\n强制退出..."));
       process.exit(1);
     }
 
     this.isShuttingDown = true;
-    console.log(chalk.yellow(`\n收到 ${signal} 信号，正在清理...`));
-
-    const spinner = ora("正在清理临时文件...").start();
 
     try {
-      // 执行所有清理函数
-      await Promise.all(
-        this.cleanupFunctions.map(async (fn) => {
-          try {
-            await fn();
-          } catch (error) {
-            console.error(chalk.red("清理函数执行失败:"), error);
-          }
-        }),
-      );
+      const clearTask = this.cleanupFunctions.map(async (fn) => {
+        try {
+          await fn();
+        } catch (error) {
+          console.error(chalk.red("清理函数执行失败:"), error);
+        }
+      });
 
-      spinner.succeed("清理完成");
-      console.log(chalk.green("程序已安全退出"));
-    } catch (error) {
-      spinner.fail("清理过程中发生错误");
-      console.error(chalk.red("清理错误:"), error);
+      // 执行所有清理函数
+      await Promise.all(clearTask);
     } finally {
       process.exit(0);
     }
