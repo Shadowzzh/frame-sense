@@ -69,7 +69,7 @@ export class FileUtils {
    * @param filePath - 文件路径
    * @returns 文件信息或 null
    */
-  public static getFileInfo(filePath: string): MediaFileInfo | null {
+  public static getFileInfo(filePath: string) {
     try {
       if (!FileUtils.fileExists(filePath)) {
         return null;

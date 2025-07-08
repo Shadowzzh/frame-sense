@@ -22,9 +22,9 @@ export class UIUtils {
    */
   static createSpinner(text: string): Ora {
     return ora({
-      text,
-      spinner: "dots",
-      color: "cyan",
+      text: chalk.green(text),
+      spinner: "aesthetic",
+      color: "green",
     });
   }
 
@@ -85,7 +85,7 @@ export class UIUtils {
    * @param results - 分析结果列表
    */
   static printAnalysisResults(results: AnalysisResult[]): void {
-    console.log(chalk.bold("\n📊 分析结果:"));
+    console.log(chalk.bold("\n 分析结果:"));
     console.log("─".repeat(80));
 
     results.forEach((result, index) => {
@@ -117,7 +117,7 @@ export class UIUtils {
    * @param results - 重命名结果列表
    */
   static printRenameResults(results: RenameResult[]): void {
-    console.log(chalk.bold("\n📝 重命名结果:"));
+    console.log(chalk.bold("\n 重命名结果:"));
     console.log("─".repeat(80));
 
     results.forEach((result, index) => {
@@ -149,7 +149,7 @@ export class UIUtils {
   static printRenamePreview(
     previews: { originalName: string; newName: string; confidence: number }[],
   ): void {
-    console.log(chalk.bold("\n👁️ 重命名预览:"));
+    console.log(chalk.bold("\n 重命名预览:"));
     console.log("─".repeat(80));
 
     previews.forEach((preview, index) => {
@@ -168,7 +168,7 @@ export class UIUtils {
    * @param stats - 统计数据
    */
   static printStatistics(stats: BatchProcessingStats): void {
-    console.log(chalk.bold("\n📈 统计信息:"));
+    console.log(chalk.bold("\n 统计信息:"));
     console.log("─".repeat(50));
     console.log(`${chalk.gray("总文件数:")} ${chalk.bold(stats.totalFiles)}`);
     console.log(`${chalk.gray("成功:")} ${chalk.green(stats.successfulFiles)}`);
@@ -183,7 +183,7 @@ export class UIUtils {
 
     // 批次统计
     if (stats.batchStats.totalBatches > 1) {
-      console.log(chalk.bold("\n📦 批次统计:"));
+      console.log(chalk.bold("\n 批次统计:"));
       console.log(
         `${chalk.gray("总批次:")} ${chalk.bold(stats.batchStats.totalBatches)}`,
       );

@@ -14,6 +14,7 @@ import type {
   RenameResult,
 } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
+import { UIUtils } from "@/utils/ui-utils";
 
 export class SmartRenamer {
   /** AI 分析器 */
@@ -54,6 +55,9 @@ export class SmartRenamer {
     if (config.isDebugMode()) {
       console.log(`开始分析文件: ${filePath}`);
     }
+
+    const spinner = UIUtils.createSpinner("AI 正在分析文件...");
+    spinner.start();
 
     try {
       let analysisResult: AnalysisResult;
@@ -126,6 +130,8 @@ export class SmartRenamer {
 
       this.renameHistory.push(result);
       return result;
+    } finally {
+      spinner.stop();
     }
   }
 

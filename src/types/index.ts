@@ -152,6 +152,8 @@ export interface CommandOptions {
   directory?: boolean;
   /** 是否测试 API 连接 */
   test?: boolean;
+  /** 是否测试 Spinner */
+  testSpinner?: boolean;
   /** 是否启用调试模式 */
   debug?: boolean;
   /** 是否启用详细输出 */

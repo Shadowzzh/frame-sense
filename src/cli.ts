@@ -71,6 +71,7 @@ class FrameSenseCLI {
       .option("-p, --preview", "预览重命名结果，不实际执行")
       .option("-o, --output <dir>", "指定输出目录")
       .option("-b, --batch <size>", "设置批量处理大小", parseInt)
+      .option("--test-spinner", "测试进度条动画")
       .option("--debug", "启用调试模式")
       .option("--verbose", "启用详细输出")
       .option("--config", "显示配置信息")
@@ -98,6 +99,11 @@ class FrameSenseCLI {
     options: CommandOptions,
   ) {
     try {
+      if (options.testSpinner) {
+        UIUtils.createSpinner("加载中...").start();
+        await new Promise((r) => setTimeout(r, 100000000));
+      }
+
       // 应用命令行选项到配置
       await this.applyOptionsToConfig(options);
 
@@ -120,17 +126,22 @@ class FrameSenseCLI {
         return;
       }
 
+      // 测试 API 连接
+      if (options.test) {
+        await this.testAPIConnection();
+        return;
+      }
+
       // 验证输入参数
       if (!filePath) {
         UIUtils.logError("请指定要处理的文件或目录路径");
-        UIUtils.printHelp();
-        process.exit(1);
+        return;
       }
 
       // 检查文件/目录是否存在
       if (!FileUtils.fileExists(filePath)) {
         UIUtils.logError(`文件或目录不存在: ${filePath}`);
-        process.exit(1);
+        return;
       }
 
       // 验证配置
@@ -138,9 +149,6 @@ class FrameSenseCLI {
       if (!validation.valid) {
         UIUtils.logError("配置验证失败:");
         validation.errors.forEach((error) => UIUtils.logError(`  ${error}`));
-        UIUtils.logInfo(
-          "请使用 'frame-sense config --api-key <key>' 设置 API Key",
-        );
         process.exit(1);
       }
 
@@ -254,13 +262,8 @@ class FrameSenseCLI {
     }
   }
 
-  /**
-   * 处理单个文件
-   */
-  private async processSingleFile(
-    filePath: string,
-    options: CommandOptions,
-  ): Promise<void> {
+  /** 处理单个文件 */
+  private async processSingleFile(filePath: string, options: CommandOptions) {
     UIUtils.printHeader("处理单个文件");
 
     const fileInfo = FileUtils.getFileInfo(filePath);
@@ -275,39 +278,29 @@ class FrameSenseCLI {
     UIUtils.logInfo(`文件类型: ${fileInfo.type}`);
     UIUtils.logInfo(`文件大小: ${FileUtils.formatFileSize(fileInfo.size)}`);
 
-    const spinner = UIUtils.createSpinner("分析文件内容...");
-    spinner.start();
+    const result = await this.getRenamer().renameSingleFile(
+      filePath,
+      options.output,
+      options.preview,
+    );
 
-    try {
-      const result = await this.getRenamer().renameSingleFile(
-        filePath,
-        options.output,
-        options.preview,
-      );
+    if (options.preview) {
+      UIUtils.printRenamePreview([
+        {
+          originalName: FileUtils.getFileNameWithoutExtension(
+            result.originalPath,
+          ),
+          newName: FileUtils.getFileNameWithoutExtension(result.newPath),
+          confidence: result.analysisResult.confidence,
+        },
+      ]);
+    } else {
+      UIUtils.printRenameResults([result]);
+    }
 
-      spinner.stop();
-
-      if (options.preview) {
-        UIUtils.printRenamePreview([
-          {
-            originalName: FileUtils.getFileNameWithoutExtension(
-              result.originalPath,
-            ),
-            newName: FileUtils.getFileNameWithoutExtension(result.newPath),
-            confidence: result.analysisResult.confidence,
-          },
-        ]);
-      } else {
-        UIUtils.printRenameResults([result]);
-      }
-
-      // 显示分析详情
-      if (this.config.isVerboseMode()) {
-        UIUtils.printAnalysisResults([result.analysisResult]);
-      }
-    } catch (error) {
-      spinner.stop();
-      throw error;
+    // 显示分析详情
+    if (this.config.isVerboseMode()) {
+      UIUtils.printAnalysisResults([result.analysisResult]);
     }
   }
 
