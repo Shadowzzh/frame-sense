@@ -3,6 +3,7 @@
  * 提供彩色终端输出、进度指示、结果展示等用户界面功能
  */
 
+import boxen from "boxen";
 import chalk from "chalk";
 import ora, { type Ora } from "ora";
 import type {
@@ -279,21 +280,17 @@ export class UIUtils {
    * @param title - 标题内容
    */
   static printHeader(title: string): void {
-    const width = 60;
-    const padding = Math.max(0, width - title.length - 2);
-    const leftPad = Math.floor(padding / 2);
-    const rightPad = padding - leftPad;
-
     console.log();
-    console.log(chalk.cyan(`┌${"─".repeat(width - 2)}┐`));
     console.log(
-      chalk.cyan("│") +
-        " ".repeat(leftPad) +
-        chalk.bold.white(title) +
-        " ".repeat(rightPad) +
-        chalk.cyan("│"),
+      boxen(chalk.bold.white(title), {
+        padding: 1,
+        margin: 0,
+        borderStyle: "round",
+        borderColor: "cyan",
+        textAlignment: "center",
+        width: 60,
+      }),
     );
-    console.log(chalk.cyan(`└${"─".repeat(width - 2)}┘`));
     console.log();
   }
 
