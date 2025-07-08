@@ -41,3 +41,27 @@ export interface CategorizedFiles {
   /** 视频文件 */
   videoFiles: string[];
 }
+
+/**
+ * AI 分析器相关类型
+ */
+export interface ImageData {
+  inlineData: {
+    data: string;
+    mimeType: string;
+  };
+}
+
+export interface OptimizedImageResult {
+  buffer: Buffer;
+  width: number;
+  height: number;
+  fileSize: number;
+  compressed: boolean;
+}
+
+export interface AnalysisRequest {
+  imagePaths: string[];
+  promptText: string;
+  parseMultipleResults: boolean;
+}

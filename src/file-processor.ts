@@ -71,7 +71,7 @@ export async function processImages(
   const imageSpinner = ora(`🤖 AI 分析图片内容...`).start();
 
   try {
-    // AI 分析
+    // AI 分析（现在会自动处理 spinner 模式）
     const analysis = await aiAnalyzer.analyzeImage(imageFiles);
     // 如果分析结果包含 "|||",则将分析结果按 "|||" 分割
     const descriptions = analysis.includes("|||")
@@ -199,7 +199,7 @@ export async function processVideos(
         videoFramesCounts.push(frames.length);
       }
 
-      // 单次 AI API 调用，批量分析所有视频帧
+      // 单次 AI API 调用，批量分析所有视频帧（现在会自动处理 spinner 模式）
       const batchAnalysis = await aiAnalyzer.analyzeImage(allFrames);
 
       // 解析批量分析结果

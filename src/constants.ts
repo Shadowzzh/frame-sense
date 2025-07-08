@@ -56,3 +56,19 @@ export type VideoExtension = (typeof VIDEO_EXTENSIONS)[number];
 
 /** 支持的所有扩展名类型 */
 export type SupportedExtension = (typeof SUPPORTED_EXTENSIONS)[number];
+
+/** AI 分析器配置常量 */
+export const AI_ANALYZER_CONFIG = {
+  /** 批量处理最大图片数量 */
+  MAX_BATCH_SIZE: 3600,
+  /** 图片压缩阈值 - 文件大小 (KB) */
+  IMAGE_SIZE_THRESHOLD: 500 * 1024,
+  /** 图片压缩阈值 - 最大宽度 */
+  IMAGE_MAX_WIDTH: 1920,
+  /** 图片压缩阈值 - 最大高度 */
+  IMAGE_MAX_HEIGHT: 720,
+  /** 图片压缩质量 */
+  IMAGE_QUALITY: 75,
+  /** 默认 AI 模型 */
+  DEFAULT_MODEL: "gemini-2.5-flash",
+} as const;
