@@ -8,9 +8,15 @@ export default defineConfig({
   minify: false,
   sourcemap: true,
   target: "node18",
-  banner: {
-    js: "#!/usr/bin/env node",
-  },
   outDir: "dist",
   tsconfig: "./tsconfig.json",
+  esbuildOptions(options) {
+    // 支持路径别名
+    options.alias = {
+      "@": "./src",
+    };
+  },
+  banner: {
+    js: "#!/usr/bin/env node\n",
+  },
 });
