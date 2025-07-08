@@ -6,23 +6,12 @@ import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import type { FrameSenseOptions } from "@/config";
 import { IMAGE_EXTENSIONS } from "@/constants";
+import {
+  type AnalysisStats,
+  AnalysisStatsCollector,
+} from "@/core/analysis-stats-collector";
 import { AI_PROMPTS } from "@/prompts";
 import { logger } from "@/utils/logger";
-
-/**
- * 统计信息接口
- * 用于记录分析过程中的统计信息
- */
-export interface AnalysisStats {
-  /** 文件总数 */
-  totalFiles: number;
-  /** 文件总大小（字节） */
-  totalSize: number;
-  /** 预估 token 数 */
-  estimatedTokens: number;
-  /** 发送数据大小（字节） */
-  sentDataSize: number;
-}
 
 /**
  * AI 分析器
@@ -30,15 +19,11 @@ export interface AnalysisStats {
 export class AIAnalyzer {
   private genAI: GoogleGenAI;
   private options: FrameSenseOptions;
-  private stats: AnalysisStats = {
-    totalFiles: 0,
-    totalSize: 0,
-    estimatedTokens: 0,
-    sentDataSize: 0,
-  };
+  private statsCollector: AnalysisStatsCollector;
 
   constructor(options: FrameSenseOptions) {
     this.options = options;
+    this.statsCollector = new AnalysisStatsCollector();
 
     // 获取 API 密钥
     const apiKey = options.apiKey || process.env.GOOGLE_API_KEY;
@@ -55,58 +40,7 @@ export class AIAnalyzer {
    * 获取统计信息
    */
   getStats(): AnalysisStats {
-    return { ...this.stats };
-  }
-
-  /**
-   * 计算文件统计信息
-   * @param filePaths 文件路径数组
-   */
-  private calculateFileStats(filePaths: string[]): void {
-    let totalSize = 0;
-
-    for (const filePath of filePaths) {
-      if (existsSync(filePath)) {
-        const stats = statSync(filePath);
-        totalSize += stats.size;
-      }
-    }
-
-    this.stats.totalFiles = filePaths.length;
-    this.stats.totalSize = totalSize;
-  }
-
-  /**
-   * 估算 token 数量
-   * @param base64Data base64 编码的数据
-   * @param text 文本内容
-   */
-  private estimateTokens(base64Data: string[], text: string): number {
-    // 文本 token 估算 (1 token ≈ 4 字符)
-    const textTokens = Math.ceil(text.length / 4);
-
-    // 图片 token 估算 (每张图片大约 258 tokens)
-    const imageTokens = base64Data.length * 258;
-
-    return textTokens + imageTokens;
-  }
-
-  /**
-   * 计算发送数据大小
-   * @param base64Data base64 编码的数据数组
-   * @param text 文本内容
-   */
-  private calculateSentDataSize(base64Data: string[], text: string): number {
-    // 文本大小 (UTF-8 编码)
-    const textSize = Buffer.byteLength(text, "utf8");
-
-    // base64 数据大小
-    const base64Size = base64Data.reduce(
-      (total, data) => total + data.length,
-      0,
-    );
-
-    return textSize + base64Size;
+    return this.statsCollector.getStats();
   }
 
   /**
@@ -193,13 +127,16 @@ export class AIAnalyzer {
     parseMultipleResults: boolean,
   ): Promise<string> {
     try {
-      // 计算文件统计信息
-      this.calculateFileStats(imagePaths);
+      // 重置统计收集器
+      this.statsCollector.reset();
+
+      // 收集文件统计信息
+      this.statsCollector.collectFileStats(imagePaths);
 
       if (this.options.verbose) {
         logger.verbose(`🤖 开始 AI 分析，共 ${imagePaths.length} 个文件`);
         logger.verbose(
-          `📊 文件总大小: ${(this.stats.totalSize / 1024 / 1024).toFixed(2)} MB`,
+          `📊 文件统计: ${imagePaths.length} 个，总大小 ${this.statsCollector.getStats().totalSize > 0 ? `${(this.statsCollector.getStats().totalSize / 1024 / 1024).toFixed(2)} MB` : "0 B"}`,
         );
         logger.verbose(`📝 使用的提示词:`);
         logger.verbose(`---`);
@@ -215,11 +152,15 @@ export class AIAnalyzer {
         };
       }[] = [];
 
+      const optimizedBuffers: Buffer[] = [];
+
       for (const path of imagePaths) {
         if (this.options.verbose) {
           logger.verbose(`🖼️  正在优化: ${path}`);
         }
         const optimizedBuffer = await this.optimizeImage(path);
+        optimizedBuffers.push(optimizedBuffer);
+
         images.push({
           inlineData: {
             data: optimizedBuffer.toString("base64"),
@@ -230,18 +171,14 @@ export class AIAnalyzer {
 
       const base64Data = images.map((img) => img.inlineData.data);
 
-      // 计算统计信息
-      this.stats.estimatedTokens = this.estimateTokens(base64Data, promptText);
-      this.stats.sentDataSize = this.calculateSentDataSize(
-        base64Data,
-        promptText,
-      );
+      // 收集数据统计信息
+      this.statsCollector.updateOptimizedSize(optimizedBuffers);
+      this.statsCollector.collectDataStats(base64Data, promptText);
+      this.statsCollector.estimateTokens(base64Data, promptText);
 
       if (this.options.verbose) {
-        logger.verbose(`🧮 预估 Token 数: ${this.stats.estimatedTokens}`);
-        logger.verbose(
-          `📦 发送数据大小: ${(this.stats.sentDataSize / 1024 / 1024).toFixed(2)} MB`,
-        );
+        logger.verbose(`📊 完整统计信息:`);
+        logger.verbose(this.statsCollector.getFormattedStats());
         logger.verbose(
           `🚀 发送请求到 ${this.options.model || "gemini-2.5-flash"} 模型`,
         );
@@ -382,23 +319,47 @@ export class AIAnalyzer {
     const fileStats = statSync(imagePath);
     const fileSize = fileStats.size;
 
-    // 文件大小超过 1MB 或尺寸超过 1920x1080 时才压缩
+    const width = metadata.width || 0;
+    const height = metadata.height || 0;
+
+    // 文件大小超过 500KB 或尺寸超过 1920x720 时才压缩
     const shouldOptimize =
-      fileSize > 1 * 1024 * 1024 ||
-      (metadata.width && metadata.width > 1920) ||
-      (metadata.height && metadata.height > 1080);
+      fileSize > 500 * 1024 || width > 1920 || height > 720;
 
     if (this.options.verbose) {
-      logger.verbose(`  📐 图片尺寸: ${metadata.width}x${metadata.height}`);
+      logger.verbose(`  📐 图片尺寸: ${width}x${height}`);
       logger.verbose(`  📏 文件大小: ${(fileSize / 1024).toFixed(2)} KB`);
     }
 
     if (shouldOptimize) {
-      if (this.options.verbose) {
-        logger.verbose(`  🔧 需要优化: 压缩到 1280x720, 质量 75%`);
+      // 计算缩放后的尺寸，保持宽高比
+      const aspectRatio = width / height;
+      let targetWidth = width;
+      let targetHeight = height;
+
+      // 如果宽度超过1920，按宽度缩放
+      if (width > 1920) {
+        targetWidth = 1920;
+        targetHeight = Math.round(1920 / aspectRatio);
       }
+
+      // 如果高度仍然超过720，按高度缩放
+      if (targetHeight > 720) {
+        targetHeight = 720;
+        targetWidth = Math.round(720 * aspectRatio);
+      }
+
+      if (this.options.verbose) {
+        logger.verbose(
+          `  🔧 需要优化: 压缩到 ${targetWidth}x${targetHeight}, 质量 75%`,
+        );
+      }
+
       return image
-        .resize(1280, 720, { fit: "inside", withoutEnlargement: true })
+        .resize(targetWidth, targetHeight, {
+          fit: "inside",
+          withoutEnlargement: true,
+        })
         .jpeg({ quality: 75 })
         .toBuffer();
     }
@@ -425,13 +386,20 @@ export class AIAnalyzer {
           role: item.role,
           parts: item.parts?.map((part) => {
             if (part.text) {
-              return { type: "text", content: part.text };
+              return {
+                type: "text",
+                content: part.text,
+                size: Buffer.byteLength(part.text, "utf8"),
+              };
             }
             if (part.inlineData) {
+              const base64Length = part.inlineData.data?.length || 0;
+              const actualDataSize = Math.floor(base64Length * 0.75);
               return {
                 type: "image",
                 mimeType: part.inlineData.mimeType,
-                dataSize: part.inlineData.data?.length,
+                base64Size: base64Length,
+                actualDataSize,
                 dataSample: `${part.inlineData.data?.substring(0, 100)}...`,
               };
             }
@@ -475,13 +443,7 @@ export class AIAnalyzer {
       });
 
       logger.error(`  统计信息:`);
-      logger.debug(
-        `    文件总大小: ${(this.stats.totalSize / 1024 / 1024).toFixed(2)} MB`,
-      );
-      logger.debug(`    预估 Token: ${this.stats.estimatedTokens}`);
-      logger.debug(
-        `    发送数据: ${(this.stats.sentDataSize / 1024 / 1024).toFixed(2)} MB`,
-      );
+      logger.debug(this.statsCollector.getDebugInfo());
     }
   }
 }
