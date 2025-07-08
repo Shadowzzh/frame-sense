@@ -3,8 +3,6 @@
  * 提供多层配置支持：命令行参数、配置文件、环境变量
  */
 
-import { homedir } from "node:os";
-import { join } from "node:path";
 import Conf from "conf";
 import type {
   AppConfig,
@@ -23,6 +21,7 @@ export class ConfigManager {
   constructor() {
     // 初始化配置存储
     this.conf = new Conf<AppConfig>({
+      projectName: "frame-sense",
       configName: "frame-sense",
       defaults: this.getDefaultConfig(),
     });
@@ -37,9 +36,8 @@ export class ConfigManager {
    */
   private getDefaultConfig(): AppConfig {
     return {
-      apiKey: "",
-      apiBaseUrl: "https://generativelanguage.googleapis.com",
-      defaultModel: "gemini-1.5-flash",
+      api: "",
+      defaultModel: "gemini-2.5-flash",
       imageProcessing: {
         quality: 75,
         maxWidth: 1280,
@@ -74,11 +72,7 @@ export class ConfigManager {
 
     // 从环境变量加载
     if (process.env.FRAME_SENSE_API_KEY) {
-      config.apiKey = process.env.FRAME_SENSE_API_KEY;
-    }
-
-    if (process.env.FRAME_SENSE_API_BASE_URL) {
-      config.apiBaseUrl = process.env.FRAME_SENSE_API_BASE_URL;
+      config.api = process.env.FRAME_SENSE_API_KEY;
     }
 
     if (process.env.FRAME_SENSE_MODEL) {
@@ -87,7 +81,7 @@ export class ConfigManager {
 
     if (process.env.FRAME_SENSE_BATCH_SIZE) {
       const batchSize = parseInt(process.env.FRAME_SENSE_BATCH_SIZE, 10);
-      if (!isNaN(batchSize) && batchSize > 0) {
+      if (!Number.isNaN(batchSize) && batchSize > 0) {
         config.batchProcessing.batchSize = batchSize;
       }
     }
@@ -159,16 +153,8 @@ export class ConfigManager {
     const errors: string[] = [];
 
     // 检查 API Key
-    if (!this.currentConfig.apiKey || this.currentConfig.apiKey.trim() === "") {
+    if (!this.currentConfig.api || this.currentConfig.api.trim() === "") {
       errors.push("API Key 未配置");
-    }
-
-    // 检查 API Base URL
-    if (
-      !this.currentConfig.apiBaseUrl ||
-      this.currentConfig.apiBaseUrl.trim() === ""
-    ) {
-      errors.push("API Base URL 未配置");
     }
 
     // 检查模型名称
@@ -225,7 +211,7 @@ export class ConfigManager {
       const configJson = JSON.stringify(config, null, 2);
 
       // 使用 Node.js 写入文件
-      const fs = require("fs");
+      const fs = require("node:fs");
       fs.writeFileSync(filePath, configJson, "utf8");
 
       return true;
@@ -236,51 +222,19 @@ export class ConfigManager {
   }
 
   /**
-   * 从文件导入配置
-   * @param filePath - 导入文件路径
-   * @returns 是否成功
-   */
-  public importConfig(filePath: string): boolean {
-    try {
-      if (!FileUtils.fileExists(filePath)) {
-        return false;
-      }
-
-      const fs = require("fs");
-      const configJson = fs.readFileSync(filePath, "utf8");
-      const config = JSON.parse(configJson) as Partial<AppConfig>;
-
-      // 验证配置
-      const tempConfig = { ...this.getDefaultConfig(), ...config };
-      const validation = this.validateConfig();
-
-      if (!validation.valid) {
-        console.error("配置验证失败:", validation.errors);
-        return false;
-      }
-
-      this.setConfig(config);
-      return true;
-    } catch (error) {
-      console.error("导入配置失败:", error);
-      return false;
-    }
-  }
-
-  /**
    * 获取 API Key
    * @returns API Key
    */
   public getApiKey(): string {
-    return this.currentConfig.apiKey;
+    return this.currentConfig.api;
   }
 
   /**
    * 设置 API Key
-   * @param apiKey - API Key
+   * @param api - API Key
    */
-  public setApiKey(apiKey: string): void {
-    this.set("apiKey", apiKey);
+  public setApiKey(api: string): void {
+    this.set("api", api);
   }
 
   /**
@@ -406,17 +360,18 @@ export function getConfigManager(): ConfigManager {
  * @returns 配置结果
  */
 export async function interactiveConfig(options: {
-  apiKey?: string;
+  /**  */
+  api?: string;
   batchSize?: number;
   debug?: boolean;
   verbose?: boolean;
-}): Promise<boolean> {
+}) {
   const manager = getConfigManager();
 
   try {
     // 设置 API Key
-    if (options.apiKey) {
-      manager.setApiKey(options.apiKey);
+    if (options.api) {
+      manager.setApiKey(options.api);
     }
 
     // 设置批量处理大小

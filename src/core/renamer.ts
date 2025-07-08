@@ -185,7 +185,7 @@ export class SmartRenamer {
         await this.batchProcessor.smartBatchProcess(
           imageFiles,
           undefined,
-          (current, total, currentBatch, totalBatches) => {
+          (current, _total, currentBatch, totalBatches) => {
             if (onProgress) {
               onProgress(
                 processedCount + current,
@@ -505,7 +505,7 @@ export interface RenameStrategy {
  * 默认重命名策略
  */
 export class DefaultRenameStrategy implements RenameStrategy {
-  apply(analysisResult: AnalysisResult, originalPath: string): string {
+  apply(analysisResult: AnalysisResult, _originalPath: string): string {
     return analysisResult.suggestedName;
   }
 }
@@ -514,7 +514,7 @@ export class DefaultRenameStrategy implements RenameStrategy {
  * 时间戳重命名策略
  */
 export class TimestampRenameStrategy implements RenameStrategy {
-  apply(analysisResult: AnalysisResult, originalPath: string): string {
+  apply(analysisResult: AnalysisResult): string {
     const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     return `${timestamp}_${analysisResult.suggestedName}`;
   }
@@ -524,7 +524,7 @@ export class TimestampRenameStrategy implements RenameStrategy {
  * 置信度重命名策略
  */
 export class ConfidenceRenameStrategy implements RenameStrategy {
-  apply(analysisResult: AnalysisResult, originalPath: string): string {
+  apply(analysisResult: AnalysisResult): string {
     const confidence = analysisResult.confidence;
     const prefix = confidence >= 80 ? "high" : confidence >= 60 ? "med" : "low";
     return `${prefix}_${analysisResult.suggestedName}`;

@@ -227,19 +227,14 @@ export class UIUtils {
    * @param config - 配置对象
    */
   static printConfigInfo(config: AppConfig): void {
-    console.log(chalk.bold("\n⚙️ 配置信息:"));
+    console.log(chalk.bold("\n⚙️  配置信息:"));
     console.log("─".repeat(50));
 
     // API 配置
     console.log(chalk.bold("API 配置:"));
-    const maskedApiKey = config.apiKey
-      ? `${config.apiKey.slice(0, 8)}${"*".repeat(Math.max(0, config.apiKey.length - 8))}`
-      : "(未设置)";
+    const maskedApiKey = `${config.api || "(未设置)"}`;
     console.log(`  ${chalk.gray("API Key:")} ${chalk.yellow(maskedApiKey)}`);
     console.log(`  ${chalk.gray("模型:")} ${chalk.cyan(config.defaultModel)}`);
-    console.log(
-      `  ${chalk.gray("Base URL:")} ${chalk.cyan(config.apiBaseUrl)}`,
-    );
 
     // 图像处理配置
     console.log(chalk.bold("\n图像处理:"));
@@ -472,12 +467,12 @@ export class UIUtils {
   static async askConfirmation(message: string): Promise<boolean> {
     return new Promise((resolve) => {
       process.stdout.write(
-        `${chalk.yellow("?")} ${message} ${chalk.gray("(y/N)")}: `,
+        `${chalk.yellow("?")} ${message} ${chalk.gray("(Y/n)")}: `,
       );
 
       process.stdin.once("data", (data) => {
         const answer = data.toString().trim().toLowerCase();
-        resolve(answer === "y" || answer === "yes");
+        resolve(answer !== "n" && answer !== "no");
       });
     });
   }

@@ -4,7 +4,6 @@
  * Frame Sense CLI 主入口文件
  * 智能媒体文件重命名工具
  */
-
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,15 +16,11 @@ import { SmartRenamer } from "@/core/renamer";
 import { VideoProcessor } from "@/core/video-processor";
 import type { CommandOptions } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
-// 导入核心模块
-import { getSignalHandler } from "@/utils/signal-handler";
+import { getSignalHandler, SignalHandler } from "@/utils/signal-handler";
 import { UIUtils } from "@/utils/ui-utils";
 
-// 创建 EnvHttpProxyAgent 实例，它将自动读取环境变量
 const envHttpProxyAgent = new EnvHttpProxyAgent();
 setGlobalDispatcher(envHttpProxyAgent);
-
-// 初始化信号处理器
 getSignalHandler();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,18 +37,30 @@ const packageJson = JSON.parse(
 class FrameSenseCLI {
   private program: Command;
   private config = getConfigManager();
-  private renamer: SmartRenamer;
+  private renamer: SmartRenamer | null = null;
 
   constructor() {
     this.program = new Command();
-    this.renamer = new SmartRenamer();
     this.setupCommands();
   }
 
-  /**
-   * 设置命令行参数
-   */
-  private setupCommands(): void {
+  /** 运行 CLI */
+  public async run() {
+    try {
+      await this.program.parseAsync(process.argv);
+    } catch (error) {
+      UIUtils.logError(
+        `程序执行失败: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+      process.exit(1);
+    } finally {
+      // 清理资源
+      this.renamer?.destroy();
+    }
+  }
+
+  /** 设置命令行参数 */
+  private setupCommands() {
     this.program
       .name("frame-sense")
       .description(packageJson.description)
@@ -66,33 +73,30 @@ class FrameSenseCLI {
       .option("-b, --batch <size>", "设置批量处理大小", parseInt)
       .option("--debug", "启用调试模式")
       .option("--verbose", "启用详细输出")
-      .option("--config <file>", "指定配置文件路径")
+      .option("--config", "显示配置信息")
       .option("--formats", "显示支持的格式")
       .option("--deps", "检查依赖")
       .action(async (filePath: string | undefined, options: CommandOptions) => {
-        await this.handleCommand(filePath, options);
+        await this.handleMainCommand(filePath, options);
       });
 
     // 添加配置子命令
     this.program
       .command("config")
       .description("配置管理")
-      .option("--api-key <key>", "设置 Google Gemini API Key")
+      .option("--api <key>", "设置 Google Gemini API Key")
       .option("--batch-size <size>", "设置批量处理大小", parseInt)
-      .option("--show", "显示当前配置")
       .option("--reset", "重置配置到默认值")
       .action(async (options) => {
-        await this.handleConfigCommand(options);
+        await this.handleSubCommand(options);
       });
   }
 
-  /**
-   * 处理主命令
-   */
-  private async handleCommand(
+  /** 处理主命令 */
+  private async handleMainCommand(
     filePath: string | undefined,
     options: CommandOptions,
-  ): Promise<void> {
+  ) {
     try {
       // 应用命令行选项到配置
       await this.applyOptionsToConfig(options);
@@ -157,35 +161,40 @@ class FrameSenseCLI {
     }
   }
 
-  /**
-   * 处理配置命令
-   */
-  private async handleConfigCommand(options: any): Promise<void> {
+  /** 处理子命令 */
+  private async handleSubCommand(options: {
+    show?: boolean;
+    reset?: boolean;
+    api?: string;
+    batchSize?: number;
+  }) {
     try {
-      if (options.show) {
-        UIUtils.printConfigInfo(this.config.getConfig());
-        return;
-      }
-
+      // 重置配置
       if (options.reset) {
         if (await UIUtils.askConfirmation("确定要重置配置到默认值吗？")) {
           this.config.resetConfig();
           UIUtils.logSuccess("配置已重置");
         }
+        SignalHandler.shutdown();
         return;
       }
 
       // 设置配置项
-      const configUpdates: any = {};
-      if (options.apiKey) configUpdates.apiKey = options.apiKey;
+      const configUpdates: {
+        api?: string;
+        batchSize?: number;
+      } = {};
+
+      if (options.api) configUpdates.api = options.api;
       if (options.batchSize) configUpdates.batchSize = options.batchSize;
 
       if (Object.keys(configUpdates).length > 0) {
         await interactiveConfig(configUpdates);
         UIUtils.logSuccess("配置已更新");
-      } else {
-        UIUtils.printConfigInfo(this.config.getConfig());
       }
+
+      // 显示配置信息
+      UIUtils.printConfigInfo(this.config.getConfig());
     } catch (error) {
       UIUtils.logError(
         `配置操作失败: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -194,11 +203,13 @@ class FrameSenseCLI {
     }
   }
 
-  /**
-   * 应用命令行选项到配置
-   */
-  private async applyOptionsToConfig(options: CommandOptions): Promise<void> {
-    const updates: any = {};
+  /** 应用命令行选项到配置 */
+  private async applyOptionsToConfig(options: CommandOptions) {
+    const updates: {
+      debug?: boolean;
+      verbose?: boolean;
+      batchSize?: number;
+    } = {};
 
     if (options.debug !== undefined) {
       updates.debug = options.debug;
@@ -268,7 +279,7 @@ class FrameSenseCLI {
     spinner.start();
 
     try {
-      const result = await this.renamer.renameSingleFile(
+      const result = await this.getRenamer().renameSingleFile(
         filePath,
         options.output,
         options.preview,
@@ -336,7 +347,7 @@ class FrameSenseCLI {
     spinner.start();
 
     try {
-      const { results, stats } = await this.renamer.batchRenameFiles(
+      const { results, stats } = await this.getRenamer().batchRenameFiles(
         mediaFiles.map((f) => f.path),
         options.output,
         options.preview,
@@ -388,21 +399,12 @@ class FrameSenseCLI {
     }
   }
 
-  /**
-   * 运行 CLI
-   */
-  public async run(): Promise<void> {
-    try {
-      await this.program.parseAsync(process.argv);
-    } catch (error) {
-      UIUtils.logError(
-        `程序执行失败: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-      process.exit(1);
-    } finally {
-      // 清理资源
-      this.renamer.destroy();
+  /**  获取或创建 SmartRenamer 实例 */
+  private getRenamer(): SmartRenamer {
+    if (!this.renamer) {
+      this.renamer = new SmartRenamer();
     }
+    return this.renamer;
   }
 }
 

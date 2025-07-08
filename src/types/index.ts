@@ -129,9 +129,7 @@ export interface BatchProcessOptions {
 /** 应用配置 */
 export interface AppConfig {
   /** Google Gemini API Key */
-  apiKey: string;
-  /** API 基础 URL */
-  apiBaseUrl: string;
+  api: string;
   /** 默认模型名称 */
   defaultModel: string;
   /** 图像处理选项 */
@@ -261,4 +259,42 @@ export interface Logger {
   info(message: string, ...args: unknown[]): void;
   warn(message: string, ...args: unknown[]): void;
   error(message: string, ...args: unknown[]): void;
+}
+
+/** 环境变量类型定义 */
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      /** Frame-Sense Google Gemini API Key */
+      FRAME_SENSE_API_KEY?: string;
+      /** Frame-Sense API 基础 URL */
+      FRAME_SENSE_API_BASE_URL?: string;
+      /** Frame-Sense 默认模型名称 */
+      FRAME_SENSE_MODEL?: string;
+      /** Frame-Sense 批量处理大小 */
+      FRAME_SENSE_BATCH_SIZE?: string;
+      /** Frame-Sense 调试模式 */
+      FRAME_SENSE_DEBUG?: string;
+      /** Frame-Sense 详细输出模式 */
+      FRAME_SENSE_VERBOSE?: string;
+      /** Frame-Sense 临时目录 */
+      FRAME_SENSE_TEMP_DIR?: string;
+      /** Frame-Sense 配置文件路径 */
+      FRAME_SENSE_CONFIG_PATH?: string;
+      /** Frame-Sense 最大并发数 */
+      FRAME_SENSE_MAX_CONCURRENCY?: string;
+      /** Frame-Sense 最大 Token 数量 */
+      FRAME_SENSE_MAX_TOKENS?: string;
+      /** Frame-Sense 图像质量 */
+      FRAME_SENSE_IMAGE_QUALITY?: string;
+      /** Frame-Sense 图像最大宽度 */
+      FRAME_SENSE_IMAGE_MAX_WIDTH?: string;
+      /** Frame-Sense 图像最大高度 */
+      FRAME_SENSE_IMAGE_MAX_HEIGHT?: string;
+      /** Frame-Sense 图像格式 */
+      FRAME_SENSE_IMAGE_FORMAT?: string;
+      /** Frame-Sense 帧提取策略 */
+      FRAME_SENSE_FRAME_STRATEGY?: string;
+    }
+  }
 }

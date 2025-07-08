@@ -55,7 +55,7 @@ export class AIAnalyzer {
       throw new Error("Google Gemini API Key 未配置");
     }
 
-    this.genAI = new GoogleGenAI(apiKey);
+    this.genAI = new GoogleGenAI({ apiKey });
     this.imageProcessor = new ImageProcessor();
   }
 
@@ -91,7 +91,7 @@ export class AIAnalyzer {
     }
 
     // 验证图像文件
-    const validImages = [];
+    const validImages: string[] = [];
     for (const imagePath of imagePaths) {
       if (FileUtils.fileExists(imagePath) && FileUtils.isImageFile(imagePath)) {
         validImages.push(imagePath);
@@ -236,9 +236,6 @@ export class AIAnalyzer {
     request: AnalysisRequest,
   ): Promise<AnalysisResult[]> {
     const config = getConfigManager();
-    const model = this.genAI.getGenerativeModel({
-      model: config.get("defaultModel"),
-    });
 
     // 准备图像数据
     const imageParts = [];
@@ -263,9 +260,11 @@ export class AIAnalyzer {
 
     try {
       // 发送请求
-      const result = await model.generateContent([fullPrompt, ...imageParts]);
-      const response = await result.response;
-      const text = response.text();
+      const result = await this.genAI.models.generateContent({
+        model: config.get("defaultModel") as string,
+        contents: [fullPrompt, ...imageParts],
+      });
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
       if (config.isDebugMode()) {
         console.log("AI 响应:", text);
@@ -307,18 +306,28 @@ export class AIAnalyzer {
         );
       }
 
-      return results.map((result: any, index: number) => ({
-        originalPath: imagePaths[index] || "",
-        suggestedName: FileUtils.sanitizeFilename(
-          result.filename || `image_${index + 1}`,
-        ),
-        description: result.description || "无描述",
-        tags: Array.isArray(result.tags) ? result.tags : [],
-        confidence:
-          typeof result.confidence === "number" ? result.confidence : 70,
-        timestamp: Date.now(),
-        filename: result.filename || `image_${index + 1}`,
-      }));
+      return results.map(
+        (
+          result: {
+            filename?: string;
+            description?: string;
+            tags?: string[];
+            confidence?: number;
+          },
+          index: number,
+        ) => ({
+          originalPath: imagePaths[index] || "",
+          suggestedName: FileUtils.sanitizeFilename(
+            result.filename || `image_${index + 1}`,
+          ),
+          description: result.description || "无描述",
+          tags: Array.isArray(result.tags) ? result.tags : [],
+          confidence:
+            typeof result.confidence === "number" ? result.confidence : 70,
+          timestamp: Date.now(),
+          filename: result.filename || `image_${index + 1}`,
+        }),
+      );
     } catch (error) {
       console.error("解析 AI 响应失败:", error);
 
@@ -428,20 +437,18 @@ export class AIAnalyzer {
   }> {
     try {
       const config = getConfigManager();
-      const model = this.genAI.getGenerativeModel({
-        model: config.get("defaultModel"),
-      });
 
       // 发送简单测试请求
-      const result = await model.generateContent(
-        'Hello, this is a test message. Please respond with "Test successful".',
-      );
-      const response = await result.response;
-      const _text = response.text();
+      const result = await this.genAI.models.generateContent({
+        model: config.get("defaultModel") as string,
+        contents:
+          'Hello, this is a test message. Please respond with "Test successful".',
+      });
+      const _text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
       return {
         success: true,
-        model: config.get("defaultModel"),
+        model: config.get("defaultModel") as string,
       };
     } catch (error) {
       return {

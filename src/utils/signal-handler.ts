@@ -103,8 +103,8 @@ export class SignalHandler {
   /**
    * 手动触发关闭
    */
-  public async shutdown() {
-    await this.handleShutdown("manual");
+  public static async shutdown() {
+    await SignalHandler.getInstance().handleShutdown("manual");
   }
 }
 

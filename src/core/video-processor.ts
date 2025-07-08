@@ -123,7 +123,12 @@ export class VideoProcessor {
         try {
           const info = JSON.parse(output);
           const videoStream = info.streams.find(
-            (s: any) => s.codec_type === "video",
+            (s: {
+              codec_type?: string;
+              width?: string | number;
+              height?: string | number;
+              r_frame_rate?: string;
+            }) => s.codec_type === "video",
           );
 
           if (!videoStream) {
@@ -342,7 +347,7 @@ export class VideoProcessor {
 
     // 获取生成的关键帧文件
     const framePaths: string[] = [];
-    const files = require("fs").readdirSync(tempDir);
+    const files = require("node:fs").readdirSync(tempDir);
 
     for (const file of files) {
       if (file.startsWith(`keyframe_${Date.now().toString().slice(0, -3)}`)) {
