@@ -4,12 +4,12 @@ import { join } from "node:path";
 import type { Content } from "@google/genai";
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
-import type { FrameSenseOptions } from "@/config";
-import { IMAGE_EXTENSIONS } from "@/constants";
 import {
   type AnalysisStats,
   AnalysisStatsCollector,
-} from "@/core/analysis-stats-collector";
+} from "@/analysis-stats-collector";
+import type { FrameSenseOptions } from "@/config";
+import { IMAGE_EXTENSIONS } from "@/constants";
 import { AI_PROMPTS } from "@/prompts";
 import { logger } from "@/utils/logger";
 
