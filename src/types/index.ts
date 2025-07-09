@@ -42,8 +42,6 @@ export interface AnalysisResult {
   description: string;
   /** 标签列表 */
   tags: string[];
-  /** 置信度 (0-100) */
-  confidence: number;
   /** 分析时间戳 */
   timestamp: number;
   /** 文件名 */
@@ -201,8 +199,6 @@ export interface BatchProcessingStats {
   successfulFiles: number;
   /** 失败处理数 */
   failedFiles: number;
-  /** 平均置信度 */
-  averageConfidence: number;
   /** 总处理时间（毫秒） */
   totalProcessingTime: number;
   /** 使用的 token 数量 */

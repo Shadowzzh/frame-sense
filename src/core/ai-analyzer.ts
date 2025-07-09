@@ -38,8 +38,7 @@ export class AIAnalyzer {
     {
       "filename": "建议的文件名",
       "description": "详细描述图像内容",
-      "tags": ["标签1", "标签2", "标签3"],
-      "confidence": 85
+      "tags": ["标签1", "标签2", "标签3"]
     }
   ]
 }
@@ -214,7 +213,6 @@ export class AIAnalyzer {
       totalFiles: imagePaths.length,
       successfulFiles: allResults.length,
       failedFiles: imagePaths.length - allResults.length,
-      averageConfidence: this.calculateAverageConfidence(allResults),
       totalProcessingTime: endTime - startTime,
       tokensUsed: totalTokensUsed,
       batchStats: {
@@ -312,7 +310,6 @@ export class AIAnalyzer {
             filename?: string;
             description?: string;
             tags?: string[];
-            confidence?: number;
           },
           index: number,
         ) => ({
@@ -322,8 +319,6 @@ export class AIAnalyzer {
           ),
           description: result.description || "无描述",
           tags: Array.isArray(result.tags) ? result.tags : [],
-          confidence:
-            typeof result.confidence === "number" ? result.confidence : 70,
           timestamp: Date.now(),
           filename: result.filename || `image_${index + 1}`,
         }),
@@ -337,7 +332,6 @@ export class AIAnalyzer {
         suggestedName: `image_${index + 1}`,
         description: "解析失败，使用默认命名",
         tags: [],
-        confidence: 50,
         timestamp: Date.now(),
         filename: `image_${index + 1}`,
       }));
@@ -380,21 +374,6 @@ export class AIAnalyzer {
     }, 0);
 
     return baseTokens + imagePaths.length * tokensPerImage + responseTokens;
-  }
-
-  /**
-   * 计算平均置信度
-   * @param results - 分析结果列表
-   * @returns 平均置信度
-   */
-  private calculateAverageConfidence(results: AnalysisResult[]): number {
-    if (results.length === 0) return 0;
-
-    const totalConfidence = results.reduce(
-      (sum, result) => sum + result.confidence,
-      0,
-    );
-    return Math.round(totalConfidence / results.length);
   }
 
   /**

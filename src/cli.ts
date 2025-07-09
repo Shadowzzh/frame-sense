@@ -295,7 +295,6 @@ class FrameSenseCLI {
         {
           originalName,
           newName,
-          confidence: result.analysisResult.confidence,
         },
       ]);
     } else {
@@ -361,7 +360,6 @@ class FrameSenseCLI {
         const previews = results.map((r) => ({
           originalName: FileUtils.getFileNameWithoutExtension(r.originalPath),
           newName: FileUtils.getFileNameWithoutExtension(r.newPath),
-          confidence: r.analysisResult.confidence,
         }));
         UIUtils.printRenamePreview(previews);
       } else {

@@ -89,18 +89,8 @@ export class UIUtils {
     console.log("─".repeat(80));
 
     results.forEach((result, index) => {
-      const confidenceColor =
-        result.confidence >= 80
-          ? "green"
-          : result.confidence >= 60
-            ? "yellow"
-            : "red";
-
       console.log(
         `${chalk.bold(`${index + 1}.`)} ${chalk.cyan(result.filename)}`,
-      );
-      console.log(
-        `   ${chalk.gray("置信度:")} ${chalk[confidenceColor](`${result.confidence}%`)}`,
       );
       console.log(`   ${chalk.gray("描述:")} ${result.description}`);
       if (result.tags.length > 0) {
@@ -129,9 +119,6 @@ export class UIUtils {
         console.log(
           `${chalk.green("✓")} ${chalk.bold(`${index + 1}.`)} ${chalk.cyan(originalName)} → ${chalk.green(newName)}`,
         );
-        console.log(
-          `   ${chalk.gray("置信度:")} ${UIUtils.formatConfidence(result.analysisResult.confidence)}`,
-        );
       } else {
         console.log(
           `${chalk.red("✗")} ${chalk.bold(`${index + 1}.`)} ${chalk.cyan(originalName)} → ${chalk.red("失败")}`,
@@ -147,7 +134,7 @@ export class UIUtils {
    * @param previews - 预览信息列表
    */
   static printRenamePreview(
-    previews: { originalName: string; newName: string; confidence: number }[],
+    previews: { originalName: string; newName: string }[],
   ): void {
     console.log(chalk.bold("\n 重命名预览:"));
     console.log("─".repeat(80));
@@ -155,9 +142,6 @@ export class UIUtils {
     previews.forEach((preview, index) => {
       console.log(
         `${chalk.bold(`${index + 1}.`)} ${chalk.cyan(preview.originalName)} → ${chalk.green(preview.newName)}`,
-      );
-      console.log(
-        `   ${chalk.gray("置信度:")} ${UIUtils.formatConfidence(preview.confidence)}`,
       );
       console.log();
     });
@@ -173,9 +157,6 @@ export class UIUtils {
     console.log(`${chalk.gray("总文件数:")} ${chalk.bold(stats.totalFiles)}`);
     console.log(`${chalk.gray("成功:")} ${chalk.green(stats.successfulFiles)}`);
     console.log(`${chalk.gray("失败:")} ${chalk.red(stats.failedFiles)}`);
-    console.log(
-      `${chalk.gray("平均置信度:")} ${UIUtils.formatConfidence(stats.averageConfidence)}`,
-    );
     console.log(
       `${chalk.gray("处理时间:")} ${chalk.bold((stats.totalProcessingTime / 1000).toFixed(2))}s`,
     );
@@ -292,17 +273,6 @@ export class UIUtils {
       }),
     );
     console.log();
-  }
-
-  /**
-   * 格式化置信度
-   * @param confidence - 置信度值
-   * @returns 格式化的置信度字符串
-   */
-  static formatConfidence(confidence: number): string {
-    if (confidence >= 80) return chalk.green(`${confidence}%`);
-    if (confidence >= 60) return chalk.yellow(`${confidence}%`);
-    return chalk.red(`${confidence}%`);
   }
 
   /**

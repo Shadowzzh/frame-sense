@@ -121,7 +121,6 @@ export class SmartRenamer {
           suggestedName: "error",
           description: "分析失败",
           tags: [],
-          confidence: 0,
           timestamp: Date.now(),
           filename: "error",
         },
@@ -269,7 +268,6 @@ export class SmartRenamer {
       totalFiles: filePaths.length,
       successfulFiles: successfulResults.length,
       failedFiles: failedResults.length,
-      averageConfidence: this.calculateAverageConfidence(successfulResults),
       totalProcessingTime: endTime - startTime,
       tokensUsed: 0, // 这里可以从 AI 分析结果中获取
       batchStats: {
@@ -388,21 +386,6 @@ export class SmartRenamer {
   }
 
   /**
-   * 计算平均置信度
-   * @param results - 重命名结果列表
-   * @returns 平均置信度
-   */
-  private calculateAverageConfidence(results: RenameResult[]): number {
-    if (results.length === 0) return 0;
-
-    const totalConfidence = results.reduce((sum, result) => {
-      return sum + result.analysisResult.confidence;
-    }, 0);
-
-    return Math.round(totalConfidence / results.length);
-  }
-
-  /**
    * 获取重命名历史记录
    * @returns 历史记录列表
    */
@@ -451,7 +434,6 @@ export class SmartRenamer {
     Array<{
       originalName: string;
       newName: string;
-      confidence: number;
     }>
   > {
     const results = await this.batchRenameFiles(filePaths, undefined, true);
@@ -459,7 +441,6 @@ export class SmartRenamer {
     return results.results.map((result) => ({
       originalName: FileUtils.getFileNameWithoutExtension(result.originalPath),
       newName: FileUtils.getFileNameWithoutExtension(result.newPath),
-      confidence: result.analysisResult.confidence,
     }));
   }
 
@@ -471,7 +452,6 @@ export class SmartRenamer {
     totalRenamed: number;
     successfulRenamed: number;
     failedRenamed: number;
-    averageConfidence: number;
   } {
     const successful = this.renameHistory.filter((r) => r.success);
     const failed = this.renameHistory.filter((r) => !r.success);
@@ -480,7 +460,6 @@ export class SmartRenamer {
       totalRenamed: this.renameHistory.length,
       successfulRenamed: successful.length,
       failedRenamed: failed.length,
-      averageConfidence: this.calculateAverageConfidence(successful),
     };
   }
 
@@ -523,16 +502,5 @@ export class TimestampRenameStrategy implements RenameStrategy {
   apply(analysisResult: AnalysisResult): string {
     const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     return `${timestamp}_${analysisResult.suggestedName}`;
-  }
-}
-
-/**
- * 置信度重命名策略
- */
-export class ConfidenceRenameStrategy implements RenameStrategy {
-  apply(analysisResult: AnalysisResult): string {
-    const confidence = analysisResult.confidence;
-    const prefix = confidence >= 80 ? "high" : confidence >= 60 ? "med" : "low";
-    return `${prefix}_${analysisResult.suggestedName}`;
   }
 }
