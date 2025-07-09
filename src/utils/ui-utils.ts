@@ -306,27 +306,6 @@ export class UIUtils {
   }
 
   /**
-   * 打印进度条
-   * @param current - 当前进度
-   * @param total - 总数
-   * @param text - 描述文本
-   */
-  static printProgressBar(current: number, total: number, text: string): void {
-    const percentage = Math.round((current / total) * 100);
-    const barLength = 30;
-    const filledLength = Math.round((current / total) * barLength);
-    const bar = "█".repeat(filledLength) + "░".repeat(barLength - filledLength);
-
-    process.stdout.write(
-      `\r${chalk.cyan(bar)} ${chalk.bold(`${percentage}%`)} ${text}`,
-    );
-
-    if (current === total) {
-      process.stdout.write("\n");
-    }
-  }
-
-  /**
    * 清除当前行
    */
   static clearLine(): void {

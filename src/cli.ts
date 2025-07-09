@@ -249,16 +249,16 @@ class FrameSenseCLI {
       const analyzer = new AIAnalyzer();
       const result = await analyzer.testConnection();
 
-      spinner.stop();
       UIUtils.printAPITestResult(result);
 
       analyzer.destroy();
     } catch (error) {
-      spinner.stop();
       UIUtils.printAPITestResult({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       });
+    } finally {
+      spinner.stop();
     }
   }
 
@@ -285,12 +285,16 @@ class FrameSenseCLI {
     );
 
     if (options.preview) {
+      const originalName = FileUtils.getFileNameWithoutExtension(
+        result.originalPath,
+      );
+
+      const newName = FileUtils.getFileNameWithoutExtension(result.newPath);
+
       UIUtils.printRenamePreview([
         {
-          originalName: FileUtils.getFileNameWithoutExtension(
-            result.originalPath,
-          ),
-          newName: FileUtils.getFileNameWithoutExtension(result.newPath),
+          originalName,
+          newName,
           confidence: result.analysisResult.confidence,
         },
       ]);
