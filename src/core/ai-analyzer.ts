@@ -467,12 +467,8 @@ export class AIBatchProcessor {
   }> {
     const config = getConfigManager();
 
-    // 根据文件数量动态调整批次大小
-    const optimalBatchSize = this.calculateOptimalBatchSize(imagePaths.length);
-
     // 临时更新配置
     const originalBatchSize = config.getBatchProcessingConfig().batchSize;
-    config.setBatchProcessingConfig({ batchSize: optimalBatchSize });
 
     try {
       const result = await this.analyzer.batchAnalyzeImages(
@@ -485,19 +481,6 @@ export class AIBatchProcessor {
       // 恢复原始配置
       config.setBatchProcessingConfig({ batchSize: originalBatchSize });
     }
-  }
-
-  /**
-   * 计算最优批次大小
-   * @param totalFiles - 总文件数
-   * @returns 最优批次大小
-   */
-  private calculateOptimalBatchSize(totalFiles: number): number {
-    if (totalFiles <= 10) return totalFiles;
-    if (totalFiles <= 50) return 10;
-    if (totalFiles <= 100) return 20;
-    if (totalFiles <= 500) return 40;
-    return 50;
   }
 
   /**

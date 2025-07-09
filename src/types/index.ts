@@ -138,10 +138,10 @@ export interface AppConfig {
   frameExtractionStrategy: FrameExtractionStrategy;
   /** 临时文件目录 */
   tempDirectory: string;
-  /** 是否启用调试模式 */
-  debug: boolean;
-  /** 是否启用详细日志 */
-  verbose: boolean;
+  /** 是否启用调试模式（临时选项，不持久化） */
+  debug?: boolean;
+  /** 是否启用详细日志（临时选项，不持久化） */
+  verbose?: boolean;
 }
 
 /** 命令行选项 */

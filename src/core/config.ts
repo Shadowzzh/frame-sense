@@ -53,8 +53,6 @@ export class ConfigManager {
       },
       frameExtractionStrategy: "single",
       tempDirectory: FileUtils.getTempDir(),
-      debug: false,
-      verbose: false,
     };
   }
 
@@ -296,7 +294,7 @@ export class ConfigManager {
    * @returns 是否启用调试模式
    */
   public isDebugMode(): boolean {
-    return this.currentConfig.debug;
+    return this.currentConfig.debug || false;
   }
 
   /**
@@ -304,7 +302,7 @@ export class ConfigManager {
    * @param debug - 是否启用调试模式
    */
   public setDebugMode(debug: boolean): void {
-    this.set("debug", debug);
+    this.currentConfig.debug = debug;
   }
 
   /**
@@ -312,7 +310,7 @@ export class ConfigManager {
    * @returns 是否启用详细输出
    */
   public isVerboseMode(): boolean {
-    return this.currentConfig.verbose;
+    return this.currentConfig.verbose || false;
   }
 
   /**
@@ -320,7 +318,7 @@ export class ConfigManager {
    * @param verbose - 是否启用详细输出
    */
   public setVerboseMode(verbose: boolean): void {
-    this.set("verbose", verbose);
+    this.currentConfig.verbose = verbose;
   }
 
   /**

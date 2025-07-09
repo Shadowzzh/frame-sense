@@ -246,12 +246,6 @@ export class UIUtils {
     console.log(
       `  ${chalk.gray("帧提取策略:")} ${chalk.cyan(config.frameExtractionStrategy)}`,
     );
-    console.log(
-      `  ${chalk.gray("调试模式:")} ${chalk.cyan(config.debug ? "是" : "否")}`,
-    );
-    console.log(
-      `  ${chalk.gray("详细输出:")} ${chalk.cyan(config.verbose ? "是" : "否")}`,
-    );
     console.log();
   }
 
