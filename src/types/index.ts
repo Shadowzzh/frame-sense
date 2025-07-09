@@ -124,6 +124,14 @@ export interface BatchProcessOptions {
   maxConcurrency: number;
 }
 
+/** Prompt 配置选项 */
+export interface PromptConfig {
+  /** 文件名字数长度限制 */
+  filenameLength: number;
+  /** 自定义 prompt 模板（只能自定义分析要求部分，JSON 格式部分由系统自动添加） */
+  customTemplate?: string;
+}
+
 /** 应用配置 */
 export interface AppConfig {
   /** Google Gemini API Key */
@@ -134,6 +142,8 @@ export interface AppConfig {
   imageProcessing: ImageProcessOptions;
   /** 批量处理选项 */
   batchProcessing: BatchProcessOptions;
+  /** Prompt 配置选项 */
+  promptConfig: PromptConfig;
   /** 帧提取策略 */
   frameExtractionStrategy: FrameExtractionStrategy;
   /** 临时文件目录 */
@@ -170,6 +180,8 @@ export interface CommandOptions {
   formats?: boolean;
   /** 检查依赖 */
   deps?: boolean;
+  /** 重置 prompt 配置到默认值 */
+  resetPrompt?: boolean;
 }
 
 /** AI 分析请求 */

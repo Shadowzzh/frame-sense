@@ -87,6 +87,9 @@ class FrameSenseCLI {
       .description("配置管理")
       .option("--api <key>", "设置 Google Gemini API Key")
       .option("--batch-size <size>", "设置批量处理大小", parseInt)
+      .option("--filename-length <length>", "设置文件名字数长度限制", parseInt)
+      .option("--custom-prompt <template>", "设置自定义 prompt 模板")
+      .option("--reset-prompt", "重置 prompt 配置到默认值")
       .option("--reset", "重置配置到默认值")
       .action(async (options) => {
         await this.handleSubCommand(options);
@@ -173,8 +176,11 @@ class FrameSenseCLI {
   private async handleSubCommand(options: {
     show?: boolean;
     reset?: boolean;
+    resetPrompt?: boolean;
     api?: string;
     batchSize?: number;
+    filenameLength?: number;
+    customPrompt?: string;
   }) {
     try {
       // 重置配置
@@ -187,14 +193,32 @@ class FrameSenseCLI {
         return;
       }
 
+      // 重置 Prompt 配置
+      if (options.resetPrompt) {
+        if (
+          await UIUtils.askConfirmation("确定要重置 Prompt 配置到默认值吗？")
+        ) {
+          this.config.resetPromptConfig();
+          UIUtils.logSuccess("Prompt 配置已重置");
+        }
+        SignalHandler.shutdown();
+        return;
+      }
+
       // 设置配置项
       const configUpdates: {
         api?: string;
         batchSize?: number;
+        filenameLength?: number;
+        customPrompt?: string;
       } = {};
 
       if (options.api) configUpdates.api = options.api;
       if (options.batchSize) configUpdates.batchSize = options.batchSize;
+      if (options.filenameLength !== undefined)
+        configUpdates.filenameLength = options.filenameLength;
+      if (options.customPrompt !== undefined)
+        configUpdates.customPrompt = options.customPrompt;
 
       if (Object.keys(configUpdates).length > 0) {
         await interactiveConfig(configUpdates);

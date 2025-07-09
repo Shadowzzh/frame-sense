@@ -241,6 +241,22 @@ export class UIUtils {
       `  ${chalk.gray("并行处理:")} ${chalk.cyan(config.batchProcessing.parallel ? "是" : "否")}`,
     );
 
+    // Prompt 配置
+    console.log(chalk.bold("\nPrompt 配置:"));
+    console.log(
+      `  ${chalk.gray("文件名长度:")} ${chalk.cyan(config.promptConfig.filenameLength)} 字符`,
+    );
+    console.log(
+      `  ${chalk.gray("自定义模板:")} ${chalk.cyan(config.promptConfig.customTemplate ? "已设置" : "未设置")}`,
+    );
+    if (config.promptConfig.customTemplate) {
+      const preview =
+        config.promptConfig.customTemplate.length > 60
+          ? `${config.promptConfig.customTemplate.substring(0, 60)}...`
+          : config.promptConfig.customTemplate;
+      console.log(`  ${chalk.gray("模板预览:")} ${chalk.dim(preview)}`);
+    }
+
     // 其他设置
     console.log(chalk.bold("\n其他:"));
     console.log(
@@ -360,6 +376,12 @@ export class UIUtils {
     );
     console.log(`  ${chalk.cyan("-o, --output <dir>")}  指定输出目录`);
     console.log(`  ${chalk.cyan("-b, --batch <size>")}  设置批量处理大小`);
+    console.log(
+      `  ${chalk.cyan("--filename-length <length>")}  设置文件名字数长度限制`,
+    );
+    console.log(
+      `  ${chalk.cyan("--custom-prompt <template>")}  设置自定义 prompt 模板`,
+    );
     console.log(`  ${chalk.cyan("--debug")}             启用调试模式`);
     console.log(`  ${chalk.cyan("--verbose")}           启用详细输出`);
     console.log(`  ${chalk.cyan("--config <file>")}     指定配置文件路径`);
@@ -384,6 +406,37 @@ export class UIUtils {
     console.log(`  frame-sense -t`);
     console.log();
 
+    console.log(`  ${chalk.gray("# 设置文件名长度限制")}`);
+    console.log(`  frame-sense --filename-length 20 photo.jpg`);
+    console.log();
+
+    console.log(`  ${chalk.gray("# 使用自定义 prompt 模板")}`);
+    console.log(
+      `  frame-sense --custom-prompt "请生成不超过{{filenameLength}}字符的英文文件名" video.mp4`,
+    );
+    console.log();
+
+    console.log(chalk.bold("配置管理:"));
+    console.log(`  ${chalk.gray("# 永久设置文件名长度")}`);
+    console.log(`  frame-sense config --filename-length 25`);
+    console.log();
+
+    console.log(`  ${chalk.gray("# 永久设置自定义模板")}`);
+    console.log(`  frame-sense config --custom-prompt "你的自定义模板内容"`);
+    console.log();
+
+    console.log(`  ${chalk.gray("# 清除自定义模板，回到默认模板")}`);
+    console.log(`  frame-sense config --custom-prompt ""`);
+    console.log();
+
+    console.log(`  ${chalk.gray("# 重置 Prompt 配置到默认值")}`);
+    console.log(`  frame-sense config --reset-prompt`);
+    console.log();
+
+    console.log(`  ${chalk.gray("# 显示当前配置")}`);
+    console.log(`  frame-sense config`);
+    console.log();
+
     console.log(chalk.bold("环境变量:"));
     console.log(
       `  ${chalk.cyan("FRAME_SENSE_API_KEY")}      Google Gemini API Key`,
@@ -394,6 +447,27 @@ export class UIUtils {
     );
     console.log(
       `  ${chalk.cyan("FRAME_SENSE_VERBOSE")}      启用详细输出 (true/false)`,
+    );
+    console.log();
+
+    console.log(chalk.bold("Prompt 配置说明:"));
+    console.log(
+      `  ${chalk.gray("• 文件名长度限制：")} 控制生成文件名的字符数量 (1-100)`,
+    );
+    console.log(
+      `  ${chalk.gray("• 自定义模板：")} 只能自定义分析要求部分，JSON 格式由系统自动添加`,
+    );
+    console.log(
+      `  ${chalk.gray("• 模板变量：")} 使用 {{filenameLength}} 引用当前文件名长度设置`,
+    );
+    console.log(
+      `  ${chalk.gray("• 清除模板：")} 设置空字符串可清除自定义模板，回到默认模板`,
+    );
+    console.log(
+      `  ${chalk.gray("• 重置配置：")} 使用 --reset-prompt 重置所有 prompt 配置到默认值`,
+    );
+    console.log(
+      `  ${chalk.gray("• 优先级：")} 命令行参数 > 自定义模板 > 默认模板`,
     );
     console.log();
   }

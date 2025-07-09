@@ -9,6 +9,7 @@ import type {
   BatchProcessOptions,
   FrameExtractionStrategy,
   ImageProcessOptions,
+  PromptConfig,
 } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
 
@@ -50,6 +51,10 @@ export class ConfigManager {
         maxTokens: 1000000,
         parallel: false,
         maxConcurrency: 3,
+      },
+      promptConfig: {
+        filenameLength: 20,
+        customTemplate: undefined,
       },
       frameExtractionStrategy: "single",
       tempDirectory: FileUtils.getTempDir(),
@@ -182,6 +187,33 @@ export class ConfigManager {
     }
     if (batchConfig.maxConcurrency < 1) {
       errors.push("最大并发数必须大于 0");
+    }
+
+    // 检查 Prompt 配置
+    const promptConfig = this.currentConfig.promptConfig;
+    if (promptConfig.filenameLength < 1) {
+      errors.push("文件名长度必须大于 0");
+    }
+    if (promptConfig.filenameLength > 100) {
+      errors.push("文件名长度不能超过 100 个字符");
+    }
+    if (promptConfig.customTemplate) {
+      // 检查自定义模板是否包含不允许的 JSON 格式内容
+      const restrictedPatterns = [
+        /请按照以下JSON格式返回结果/,
+        /\{\s*"results"\s*:\s*\[/,
+        /确保为每个图像都提供一个结果/,
+        /结果数量必须与图像数量一致/,
+      ];
+
+      for (const pattern of restrictedPatterns) {
+        if (pattern.test(promptConfig.customTemplate)) {
+          errors.push(
+            "自定义模板不能包含 JSON 格式要求部分，该部分由系统自动添加",
+          );
+          break;
+        }
+      }
     }
 
     return {
@@ -336,6 +368,41 @@ export class ConfigManager {
   public setTempDirectory(tempDirectory: string): void {
     this.set("tempDirectory", tempDirectory);
   }
+
+  /**
+   * 获取 Prompt 配置
+   * @returns Prompt 配置
+   */
+  public getPromptConfig(): PromptConfig {
+    return { ...this.currentConfig.promptConfig };
+  }
+
+  /**
+   * 设置 Prompt 配置
+   * @param config - Prompt 配置
+   */
+  public setPromptConfig(config: Partial<PromptConfig>): void {
+    // 处理清除自定义模板的情况（设置为空字符串或 undefined）
+    const updatedConfig = { ...config };
+    if (updatedConfig.customTemplate === "") {
+      updatedConfig.customTemplate = undefined;
+    }
+
+    this.set("promptConfig", {
+      ...this.currentConfig.promptConfig,
+      ...updatedConfig,
+    });
+  }
+
+  /**
+   * 重置 Prompt 配置到默认值
+   */
+  public resetPromptConfig(): void {
+    this.set("promptConfig", {
+      filenameLength: 30,
+      customTemplate: undefined,
+    });
+  }
 }
 
 /** 全局配置管理器实例 */
@@ -363,6 +430,9 @@ export async function interactiveConfig(options: {
   batchSize?: number;
   debug?: boolean;
   verbose?: boolean;
+  filenameLength?: number;
+  customPrompt?: string;
+  resetPrompt?: boolean;
 }) {
   const manager = getConfigManager();
 
@@ -385,6 +455,20 @@ export async function interactiveConfig(options: {
     // 设置详细输出
     if (options.verbose !== undefined) {
       manager.setVerboseMode(options.verbose);
+    }
+
+    // 重置 Prompt 配置
+    if (options.resetPrompt) {
+      manager.resetPromptConfig();
+    }
+
+    // 设置 Prompt 配置
+    if (options.filenameLength !== undefined) {
+      manager.setPromptConfig({ filenameLength: options.filenameLength });
+    }
+
+    if (options.customPrompt !== undefined) {
+      manager.setPromptConfig({ customTemplate: options.customPrompt });
     }
 
     // 验证配置

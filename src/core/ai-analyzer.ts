@@ -20,34 +20,32 @@ export class AIAnalyzer {
   private genAI: GoogleGenAI;
   /** 图像处理器实例 */
   private imageProcessor: ImageProcessor;
-  /** 默认提示词 */
-  private static readonly DEFAULT_PROMPT = `
-请分析这些图像的内容，并为每个图像生成一个简洁、描述性的文件名。
+  /** 默认自定义内容模板 */
+  private static readonly DEFAULT_CUSTOM_CONTENT = `
+请分析这些图像的内容，并为每个图像生成一个描述性的文件名。
 
 要求：
-- 文件名应该言简意骇，不超过30个字符
+- 文件名长度{{filenameLength}}个字符。
 - 使用中文描述主要内容
 - 避免使用特殊字符，可以使用下划线或连字符
 - 重点突出图像的主要特征、场景或对象
 - 如果是人物照片，描述场景而不是具体人物
 - 如果是风景照片，描述地点特征或景观类型
-- 如果是物品照片，描述物品类型和特征
-- description 文字长度限制 100 内
-- tags 数组长度限制 6 个
+- 如果是物品照片，描述物品类型和特征`;
+
+  /** 固定的 JSON 格式要求（不可修改） */
+  private static readonly FIXED_JSON_FORMAT = `
 
 请按照以下JSON格式返回结果：
 {
   "results": [
     {
       "filename": "建议的文件名",
-      "description": "详细描述图像内容",
-      "tags": ["标签1", "标签2", "标签3"]
     }
   ]
 }
 
-确保为每个图像都提供一个结果，结果数量必须与图像数量一致。
-`;
+确保为每个图像都提供一个结果，结果数量必须与图像数量一致。`;
 
   constructor() {
     const config = getConfigManager();
@@ -59,6 +57,40 @@ export class AIAnalyzer {
 
     this.genAI = new GoogleGenAI({ apiKey });
     this.imageProcessor = new ImageProcessor();
+  }
+
+  /**
+   * 生成提示词
+   * @param userPrompt - 用户自定义提示词
+   * @returns 生成的提示词
+   */
+  private generatePrompt(userPrompt?: string): string {
+    const config = getConfigManager();
+    const promptConfig = config.getPromptConfig();
+
+    // 如果用户提供了自定义提示词，直接使用（完全覆盖）
+    if (userPrompt) {
+      return userPrompt;
+    }
+
+    // 获取自定义内容部分
+    let customContent: string;
+    if (promptConfig.customTemplate) {
+      // 使用用户自定义的内容模板
+      customContent = promptConfig.customTemplate.replace(
+        /\{\{filenameLength\}\}/g,
+        promptConfig.filenameLength.toString(),
+      );
+    } else {
+      // 使用默认内容模板
+      customContent = AIAnalyzer.DEFAULT_CUSTOM_CONTENT.replace(
+        /\{\{filenameLength\}\}/g,
+        promptConfig.filenameLength.toString(),
+      );
+    }
+
+    // 组合自定义内容和固定的 JSON 格式要求
+    return customContent + AIAnalyzer.FIXED_JSON_FORMAT;
   }
 
   /**
@@ -247,7 +279,7 @@ export class AIAnalyzer {
     }
 
     // 构建提示词
-    const prompt = request.userPrompt || AIAnalyzer.DEFAULT_PROMPT;
+    const prompt = this.generatePrompt(request.userPrompt);
     const fullPrompt = `${prompt}\n\n图像数量: ${request.imagePaths.length}`;
 
     if (config.isDebugMode()) {
