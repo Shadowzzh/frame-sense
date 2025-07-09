@@ -56,7 +56,7 @@ export class SmartRenamer {
       console.log(`开始分析文件: ${filePath}`);
     }
 
-    const spinner = UIUtils.createSpinner("AI 正在分析文件...");
+    const spinner = UIUtils.createSpinner("AI 正在分析文件...\n");
     spinner.start();
 
     try {
@@ -269,7 +269,6 @@ export class SmartRenamer {
       successfulFiles: successfulResults.length,
       failedFiles: failedResults.length,
       totalProcessingTime: endTime - startTime,
-      tokensUsed: 0, // 这里可以从 AI 分析结果中获取
       batchStats: {
         totalBatches:
           Math.ceil(
@@ -297,39 +296,39 @@ export class SmartRenamer {
    * @param onProgress - 进度回调
    * @returns 重命名结果
    */
-  public async renameDirectory(
-    dirPath: string,
-    outputDir?: string,
-    preview = false,
-    onProgress?: (current: number, total: number, currentFile: string) => void,
-  ): Promise<{
-    results: RenameResult[];
-    stats: BatchProcessingStats;
-  }> {
-    const config = getConfigManager();
+  // public async renameDirectory(
+  //   dirPath: string,
+  //   outputDir?: string,
+  //   preview = false,
+  //   onProgress?: (current: number, total: number, currentFile: string) => void,
+  // ): Promise<{
+  //   results: RenameResult[];
+  //   stats: BatchProcessingStats;
+  // }> {
+  //   const config = getConfigManager();
 
-    if (!FileUtils.fileExists(dirPath)) {
-      throw new Error(`目录不存在: ${dirPath}`);
-    }
+  //   if (!FileUtils.fileExists(dirPath)) {
+  //     throw new Error(`目录不存在: ${dirPath}`);
+  //   }
 
-    if (config.isDebugMode()) {
-      console.log(`开始处理目录: ${dirPath}`);
-    }
+  //   if (config.isDebugMode()) {
+  //     console.log(`开始处理目录: ${dirPath}`);
+  //   }
 
-    // 获取目录中的所有媒体文件
-    const mediaFiles = FileUtils.getMediaFiles(dirPath, false); // 不递归
-    const filePaths = mediaFiles.map((file) => file.path);
+  //   // 获取目录中的所有媒体文件
+  //   const mediaFiles = FileUtils.getMediaFiles(dirPath, false); // 不递归
+  //   const filePaths = mediaFiles.map((file) => file.path);
 
-    if (filePaths.length === 0) {
-      throw new Error(`目录中没有找到媒体文件: ${dirPath}`);
-    }
+  //   if (filePaths.length === 0) {
+  //     throw new Error(`目录中没有找到媒体文件: ${dirPath}`);
+  //   }
 
-    if (config.isVerboseMode()) {
-      console.log(`找到 ${filePaths.length} 个媒体文件`);
-    }
+  //   if (config.isVerboseMode()) {
+  //     console.log(`找到 ${filePaths.length} 个媒体文件`);
+  //   }
 
-    return this.batchRenameFiles(filePaths, outputDir, preview, onProgress);
-  }
+  //   return this.batchRenameFiles(filePaths, outputDir, preview, onProgress);
+  // }
 
   /**
    * 分析视频文件

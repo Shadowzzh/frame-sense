@@ -13,6 +13,7 @@ import type {
   BatchProcessingStats,
 } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
+import { UIUtils } from "@/utils/ui-utils";
 
 export class AIAnalyzer {
   /** Google Generative AI 实例 */
@@ -31,6 +32,8 @@ export class AIAnalyzer {
 5. 如果是人物照片，描述场景而不是具体人物
 6. 如果是风景照片，描述地点特征或景观类型
 7. 如果是物品照片，描述物品类型和特征
+8. description 文字长度限制 100 内
+9. tags 数组长度限制 3 个
 
 请按照以下JSON格式返回结果：
 {
@@ -91,6 +94,7 @@ export class AIAnalyzer {
 
     // 验证图像文件
     const validImages: string[] = [];
+
     for (const imagePath of imagePaths) {
       if (FileUtils.fileExists(imagePath) && FileUtils.isImageFile(imagePath)) {
         validImages.push(imagePath);
@@ -156,7 +160,6 @@ export class AIAnalyzer {
     // 分批处理
     const batches = this.createBatches(imagePaths, batchConfig.batchSize);
     const allResults: AnalysisResult[] = [];
-    let totalTokensUsed = 0;
     let successfulBatches = 0;
     let failedBatches = 0;
     let processedFiles = 0;
@@ -192,9 +195,6 @@ export class AIAnalyzer {
         allResults.push(...batchResults);
         successfulBatches++;
 
-        // 估算使用的 token 数量
-        totalTokensUsed += this.estimateTokenUsage(batch, batchResults);
-
         if (config.isDebugMode()) {
           console.log(
             `第 ${batchNumber} 批处理完成，获得 ${batchResults.length} 个结果`,
@@ -214,7 +214,6 @@ export class AIAnalyzer {
       successfulFiles: allResults.length,
       failedFiles: imagePaths.length - allResults.length,
       totalProcessingTime: endTime - startTime,
-      tokensUsed: totalTokensUsed,
       batchStats: {
         totalBatches: batches.length,
         successfulBatches,
@@ -252,8 +251,15 @@ export class AIAnalyzer {
     const fullPrompt = `${prompt}\n\n图像数量: ${request.imagePaths.length}`;
 
     if (config.isDebugMode()) {
-      console.log("发送给 AI 的提示词:", fullPrompt);
-      console.log("图像数量:", request.imagePaths.length);
+      UIUtils.logDebug(
+        `图像 base64 大小: ${FileUtils.formatFileSize(
+          imageParts.reduce(
+            (sum, p) => sum + FileUtils.base64EncodedSize(p.inlineData.data),
+            0,
+          ),
+        )}`,
+      );
+      UIUtils.logDebug(`发送给 AI 的提示词: ${fullPrompt}`);
     }
 
     try {
@@ -262,14 +268,22 @@ export class AIAnalyzer {
         model: config.get("defaultModel") as string,
         contents: [fullPrompt, ...imageParts],
       });
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const text = result.text || "";
 
       if (config.isDebugMode()) {
+        console.log(
+          "AI 使用情况:",
+          JSON.stringify(result.usageMetadata, null, 2),
+        );
         console.log("AI 响应:", text);
       }
 
       // 解析响应
-      return this.parseAnalysisResponse(text, request.imagePaths);
+      const analysisReponse = this.parseAnalysisResponse(
+        text,
+        request.imagePaths,
+      );
+      return analysisReponse;
     } catch (error) {
       throw new Error(
         `AI 分析请求失败: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -295,7 +309,12 @@ export class AIAnalyzer {
         .trim();
 
       const parsed = JSON.parse(cleanedText);
-      const results = parsed.results || [];
+
+      const results: {
+        filename?: string;
+        description?: string;
+        tags?: string[];
+      }[] = parsed.results || [];
 
       // 确保结果数量与图像数量匹配
       if (results.length !== imagePaths.length) {
@@ -304,25 +323,18 @@ export class AIAnalyzer {
         );
       }
 
-      return results.map(
-        (
-          result: {
-            filename?: string;
-            description?: string;
-            tags?: string[];
-          },
-          index: number,
-        ) => ({
-          originalPath: imagePaths[index] || "",
-          suggestedName: FileUtils.sanitizeFilename(
-            result.filename || `image_${index + 1}`,
-          ),
-          description: result.description || "无描述",
-          tags: Array.isArray(result.tags) ? result.tags : [],
-          timestamp: Date.now(),
-          filename: result.filename || `image_${index + 1}`,
-        }),
-      );
+      const analysisResult = results.map((result, index: number) => ({
+        originalPath: imagePaths[index] || "",
+        suggestedName: FileUtils.sanitizeFilename(
+          result.filename || `image_${index + 1}`,
+        ),
+        description: result.description || "无描述",
+        tags: Array.isArray(result.tags) ? result.tags : [],
+        timestamp: Date.now(),
+        filename: result.filename || `image_${index + 1}`,
+      }));
+
+      return analysisResult;
     } catch (error) {
       console.error("解析 AI 响应失败:", error);
 
@@ -350,30 +362,6 @@ export class AIAnalyzer {
       batches.push(items.slice(i, i + batchSize));
     }
     return batches;
-  }
-
-  /**
-   * 估算 token 使用量
-   * @param imagePaths - 图像路径列表
-   * @param results - 分析结果
-   * @returns 估算的 token 数量
-   */
-  private estimateTokenUsage(
-    imagePaths: string[],
-    results: AnalysisResult[],
-  ): number {
-    // 基础 token 使用量（提示词）
-    const baseTokens = 500;
-
-    // 每个图像的 token 使用量（估算）
-    const tokensPerImage = 200;
-
-    // 响应的 token 使用量
-    const responseTokens = results.reduce((total, result) => {
-      return total + result.description.length / 4 + result.tags.length * 10;
-    }, 0);
-
-    return baseTokens + imagePaths.length * tokensPerImage + responseTokens;
   }
 
   /**

@@ -81,6 +81,7 @@ export class ImageProcessor {
         newSize.width !== originalWidth ||
         newSize.height !== originalHeight
       ) {
+        // 将图像调整为指定宽度、高度或宽度 x 高度。
         sharpInstance = sharpInstance.resize(newSize.width, newSize.height, {
           fit: processOptions.keepAspectRatio ? "inside" : "fill",
           withoutEnlargement: true,
@@ -146,39 +147,40 @@ export class ImageProcessor {
    * @param onProgress - 进度回调
    * @returns 处理后的图像路径列表
    */
-  public async batchProcessImages(
-    imagePaths: string[],
-    options?: Partial<ImageProcessOptions>,
-    onProgress?: (current: number, total: number, currentFile: string) => void,
-  ): Promise<string[]> {
-    const results: string[] = [];
-    const total = imagePaths.length;
+  // public async batchProcessImages(
+  //   imagePaths: string[],
+  //   options?: Partial<ImageProcessOptions>,
+  //   onProgress?: (current: number, total: number, currentFile: string) => void,
+  // ): Promise<string[]> {
+  //   const results: string[] = [];
+  //   const total = imagePaths.length;
 
-    for (let i = 0; i < imagePaths.length; i++) {
-      const imagePath = imagePaths[i];
+  //   for (let i = 0; i < imagePaths.length; i++) {
+  //     const imagePath = imagePaths[i];
 
-      if (onProgress) {
-        onProgress(i + 1, total, imagePath);
-      }
+  //     if (onProgress) {
+  //       onProgress(i + 1, total, imagePath);
+  //     }
 
-      try {
-        const processedPath = await this.processImage(imagePath, options);
-        results.push(processedPath);
-      } catch (error) {
-        console.error(`处理图像文件失败 ${imagePath}:`, error);
-        // 继续处理其他文件，不中断整个批量处理
-      }
-    }
+  //     try {
+  //       // TODO 同步处理 or 并发处理？
+  //       const processedPath = await this.processImage(imagePath, options);
+  //       results.push(processedPath);
+  //     } catch (error) {
+  //       console.error(`处理图像文件失败 ${imagePath}:`, error);
+  //       // 继续处理其他文件，不中断整个批量处理
+  //     }
+  //   }
 
-    return results;
-  }
+  //   return results;
+  // }
 
   /**
    * 优化图像以适应 AI 分析
    * @param imagePath - 图像文件路径
    * @returns 优化后的图像路径
    */
-  public async optimizeForAI(imagePath: string): Promise<string> {
+  public async optimizeForAI(imagePath: string) {
     const aiOptimizedOptions: ImageProcessOptions = {
       quality: 85,
       maxWidth: 1024,

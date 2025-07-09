@@ -278,12 +278,14 @@ class FrameSenseCLI {
     UIUtils.logInfo(`文件类型: ${fileInfo.type}`);
     UIUtils.logInfo(`文件大小: ${FileUtils.formatFileSize(fileInfo.size)}`);
 
+    // AI 处理
     const result = await this.getRenamer().renameSingleFile(
       filePath,
       options.output,
       options.preview,
     );
 
+    // 预览模式
     if (options.preview) {
       const originalName = FileUtils.getFileNameWithoutExtension(
         result.originalPath,

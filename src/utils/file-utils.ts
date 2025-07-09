@@ -293,11 +293,22 @@ export class FileUtils {
   }
 
   /**
+   * 计算 Base64 编码后的字节大小
+   * @param input
+   * @returns
+   */
+  public static base64EncodedSize(input: string) {
+    const buffer = Buffer.from(input);
+    const bytes = Math.ceil(buffer.length / 3) * 4;
+    return bytes;
+  }
+
+  /**
    * 格式化文件大小
    * @param bytes - 字节数
    * @returns 格式化后的大小字符串
    */
-  public static formatFileSize(bytes: number): string {
+  public static formatFileSize(bytes: number) {
     if (bytes === 0) return "0 B";
 
     const k = 1024;

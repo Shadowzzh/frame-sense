@@ -160,7 +160,6 @@ export class UIUtils {
     console.log(
       `${chalk.gray("处理时间:")} ${chalk.bold((stats.totalProcessingTime / 1000).toFixed(2))}s`,
     );
-    console.log(`${chalk.gray("使用 Token:")} ${chalk.bold(stats.tokensUsed)}`);
 
     // 批次统计
     if (stats.batchStats.totalBatches > 1) {

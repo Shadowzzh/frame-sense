@@ -297,8 +297,11 @@ export class VideoProcessor {
     tempDir: string,
     videoInfo: { duration: number },
   ): Promise<string[]> {
+    /** 取帧数 */
     const frameCount = VideoProcessor.DEFAULT_FRAME_COUNT;
+    /** 帧间隔 */
     const interval = videoInfo.duration / (frameCount + 1);
+    /** 帧文件路径列表 */
     const framePaths: string[] = [];
 
     for (let i = 1; i <= frameCount; i++) {

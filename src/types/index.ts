@@ -201,8 +201,6 @@ export interface BatchProcessingStats {
   failedFiles: number;
   /** 总处理时间（毫秒） */
   totalProcessingTime: number;
-  /** 使用的 token 数量 */
-  tokensUsed: number;
   /** 批次统计 */
   batchStats: {
     /** 总批次数 */
