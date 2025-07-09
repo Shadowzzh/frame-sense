@@ -14,7 +14,6 @@ import type {
   RenameResult,
 } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
-import { UIUtils } from "@/utils/ui-utils";
 
 export class SmartRenamer {
   /** AI 分析器 */
@@ -55,9 +54,6 @@ export class SmartRenamer {
     if (config.isDebugMode()) {
       console.log(`开始分析文件: ${filePath}`);
     }
-
-    const spinner = UIUtils.createSpinner("AI 正在分析文件...\n");
-    spinner.start();
 
     try {
       let analysisResult: AnalysisResult;
@@ -129,8 +125,6 @@ export class SmartRenamer {
 
       this.renameHistory.push(result);
       return result;
-    } finally {
-      spinner.stop();
     }
   }
 
@@ -146,7 +140,7 @@ export class SmartRenamer {
     filePaths: string[],
     outputDir?: string,
     preview = false,
-    onProgress?: (current: number, total: number, currentFile: string) => void,
+    onProgress?: (current: number, total: number) => void,
   ): Promise<{
     results: RenameResult[];
     stats: BatchProcessingStats;
@@ -182,7 +176,6 @@ export class SmartRenamer {
     }
 
     const allResults: RenameResult[] = [];
-    let processedCount = 0;
 
     // 批量处理图像文件
     if (imageFiles.length > 0) {
@@ -190,13 +183,10 @@ export class SmartRenamer {
         await this.batchProcessor.smartBatchProcess(
           imageFiles,
           undefined,
-          (current, _total, currentBatch, totalBatches) => {
+          (current, _total) => {
             if (onProgress) {
-              onProgress(
-                processedCount + current,
-                filePaths.length,
-                `批次 ${currentBatch}/${totalBatches}`,
-              );
+              // 简化批次进度显示
+              onProgress(current, filePaths.length);
             }
           },
         );
@@ -236,14 +226,13 @@ export class SmartRenamer {
           this.renameHistory.push(result);
         }
       }
-
-      processedCount += imageFiles.length;
     }
 
     // 处理视频文件
-    for (const videoFile of videoFiles) {
+    for (let i = 0; i < videoFiles.length; i++) {
+      const videoFile = videoFiles[i];
       if (onProgress) {
-        onProgress(processedCount + 1, filePaths.length, videoFile);
+        onProgress(imageFiles.length + i + 1, filePaths.length);
       }
 
       try {
@@ -256,8 +245,6 @@ export class SmartRenamer {
       } catch (error) {
         console.error(`处理视频文件失败 ${videoFile}:`, error);
       }
-
-      processedCount++;
     }
 
     const endTime = Date.now();

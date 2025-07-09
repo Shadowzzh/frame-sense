@@ -279,33 +279,43 @@ class FrameSenseCLI {
     UIUtils.logInfo(`文件大小: ${FileUtils.formatFileSize(fileInfo.size)}`);
 
     // AI 处理
-    const result = await this.getRenamer().renameSingleFile(
-      filePath,
-      options.output,
-      options.preview,
-    );
+    const spinner = UIUtils.createSpinner("AI 正在分析文件...");
+    spinner.start();
 
-    // 预览模式
-    if (options.preview) {
-      const originalName = FileUtils.getFileNameWithoutExtension(
-        result.originalPath,
+    try {
+      const result = await this.getRenamer().renameSingleFile(
+        filePath,
+        options.output,
+        options.preview,
       );
 
-      const newName = FileUtils.getFileNameWithoutExtension(result.newPath);
+      spinner.stop();
 
-      UIUtils.printRenamePreview([
-        {
-          originalName,
-          newName,
-        },
-      ]);
-    } else {
-      UIUtils.printRenameResults([result]);
-    }
+      // 预览模式
+      if (options.preview) {
+        const originalName = FileUtils.getFileNameWithoutExtension(
+          result.originalPath,
+        );
 
-    // 显示分析详情
-    if (this.config.isVerboseMode()) {
-      UIUtils.printAnalysisResults([result.analysisResult]);
+        const newName = FileUtils.getFileNameWithoutExtension(result.newPath);
+
+        UIUtils.printRenamePreview([
+          {
+            originalName,
+            newName,
+          },
+        ]);
+      } else {
+        UIUtils.printRenameResults([result]);
+      }
+
+      // 显示分析详情
+      if (this.config.isVerboseMode()) {
+        UIUtils.printAnalysisResults([result.analysisResult]);
+      }
+    } catch (error) {
+      spinner.stop();
+      throw error;
     }
   }
 
@@ -349,9 +359,8 @@ class FrameSenseCLI {
         mediaFiles.map((f) => f.path),
         options.output,
         options.preview,
-        (current, total, currentFile) => {
-          const fileName = currentFile.split("/").pop() || currentFile;
-          spinner.text = `处理文件 ${current}/${total}: ${fileName}`;
+        (current, total) => {
+          spinner.text = `处理文件 ${current}/${total}`;
         },
       );
 

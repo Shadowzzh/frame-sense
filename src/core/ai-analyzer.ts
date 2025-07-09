@@ -25,7 +25,7 @@ export class AIAnalyzer {
 请分析这些图像的内容，并为每个图像生成一个简洁、描述性的文件名。
 
 要求：
-- 文件名应该简洁明了，不超过30个字符
+- 文件名应该言简意骇，不超过30个字符
 - 使用中文描述主要内容
 - 避免使用特殊字符，可以使用下划线或连字符
 - 重点突出图像的主要特征、场景或对象
@@ -175,15 +175,6 @@ export class AIAnalyzer {
       const batch = batches[i];
       const batchNumber = i + 1;
 
-      if (onProgress) {
-        onProgress(
-          processedFiles,
-          imagePaths.length,
-          batchNumber,
-          batches.length,
-        );
-      }
-
       try {
         if (config.isVerboseMode()) {
           console.log(
@@ -206,6 +197,15 @@ export class AIAnalyzer {
       }
 
       processedFiles += batch.length;
+
+      if (onProgress) {
+        onProgress(
+          processedFiles,
+          imagePaths.length,
+          batchNumber,
+          batches.length,
+        );
+      }
     }
 
     const endTime = Date.now();
