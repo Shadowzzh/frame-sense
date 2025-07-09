@@ -340,7 +340,12 @@ export class AIAnalyzer {
         .replace(/```\n?/g, "")
         .trim();
 
-      const parsed = JSON.parse(cleanedText);
+      // 修复 JSON 中的常见错误：移除对象末尾的多余逗号
+      const fixedJson = cleanedText
+        .replace(/,(\s*})/g, "$1") // 移除对象末尾的逗号
+        .replace(/,(\s*\])/g, "$1"); // 移除数组末尾的逗号
+
+      const parsed = JSON.parse(fixedJson);
 
       const results: {
         filename?: string;

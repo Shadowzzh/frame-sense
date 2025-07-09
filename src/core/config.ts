@@ -399,7 +399,7 @@ export class ConfigManager {
    */
   public resetPromptConfig(): void {
     this.set("promptConfig", {
-      filenameLength: 30,
+      filenameLength: this.getDefaultConfig().promptConfig.filenameLength,
       customTemplate: undefined,
     });
   }
