@@ -113,6 +113,7 @@ export class UIUtils {
     results.forEach((result, index) => {
       const originalName =
         result.originalPath.split("/").pop() || result.originalPath;
+
       const newName = result.newPath.split("/").pop() || result.newPath;
 
       if (result.success) {
@@ -125,7 +126,6 @@ export class UIUtils {
         );
         console.log(`   ${chalk.red("错误:")} ${result.error}`);
       }
-      console.log();
     });
   }
 
