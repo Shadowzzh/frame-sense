@@ -15,26 +15,12 @@ Frame-Sense 是一个基于 AI 的智能命令行工具，结合 FFmpeg 和 Goog
 
 ## ✨ 主要特性
 
-### 智能媒体分析
-- **视频帧提取**: 自动提取关键帧进行 AI 分析
-- **图片直接分析**: 支持多种图片格式的直接内容识别
-- **混合批次处理**: 统一处理图片和视频文件，优化AI调用效率
-
-### 批量处理能力
-- **智能批次组织**: 自动将图片帧和视频帧混合分组，提高处理效率
-- **并行处理**: 支持多文件并发处理，大幅提升处理速度
-- **进度跟踪**: 实时显示处理进度和详细状态信息
-
-### 智能命名
-- **语义化文件名**: 基于图像内容生成有意义的文件名
-- **自定义提示词**: 支持用户自定义 AI 分析提示模板
-- **文件名长度控制**: 可配置生成文件名的字符长度限制
-
-### 丰富的配置选项
-- **多种输出模式**: 支持预览模式和实际重命名
-- **灵活的批次大小**: 可根据需要调整批处理大小
-- **详细日志**: 支持调试模式和详细输出
-- **配置持久化**: 配置信息自动保存，下次使用无需重新设置
+- 🎯 **AI 自动重命名** - 基于图像内容生成语义化文件名
+- 📹 **视频 + 图片支持** - 自动提取视频帧，统一处理所有媒体文件
+- ⚡ **批量处理** - 一次性处理整个目录，支持混合媒体类型
+- 👀 **预览模式** - 先预览重命名结果，确认无误后再执行
+- 🔧 **自定义配置** - 支持自定义 AI 提示词、批次大小、文件名长度
+- 📁 **输出目录** - 可指定输出目录，避免覆盖原文件
 
 ## 📦 安装
 
@@ -68,46 +54,16 @@ frame-sense video.mp4 --preview
 
 ### 3. 批量处理目录
 ```bash
-# 处理目录中的所有媒体文件
-frame-sense /path/to/media/folder -d
+# 处理目录中的所有媒体文件（自动识别为目录）
+frame-sense /path/to/media/folder
 
 # 预览批量重命名结果
-frame-sense /path/to/media/folder -d -p
+frame-sense /path/to/media/folder --preview
 
 # 指定输出目录
-frame-sense /path/to/media/folder -d /path/to/output
+frame-sense /path/to/media/folder --output /path/to/output
 ```
 
-## 🔧 命令详解
-
-### 主命令
-```bash
-frame-sense [文件路径] [选项]
-```
-
-#### 选项说明
-- `-d, --directory` - 分析整个目录中的媒体文件
-- `-p, --preview` - 预览重命名结果，不实际执行
-- `-o, --output <dir>` - 指定输出目录
-- `-b, --batch <size>` - 设置批量处理大小
-- `-v, --verbose` - 启用详细输出和调试模式
-- `-t, --test` - 测试 AI API 连接
-- `--config` - 显示当前配置信息
-- `--formats` - 显示支持的媒体格式
-- `--deps` - 检查系统依赖
-
-### 配置管理
-```bash
-frame-sense config [选项]
-```
-
-#### 配置选项
-- `--api <key>` - 设置 Google Gemini API Key
-- `--batch-size <size>` - 设置默认批量处理大小
-- `--filename-length <length>` - 设置文件名字符长度限制
-- `--custom-prompt <template>` - 设置自定义分析提示模板
-- `--reset-prompt` - 重置提示模板到默认值
-- `--reset` - 重置所有配置到默认值
 
 ### 使用示例
 
@@ -119,11 +75,11 @@ frame-sense vacation.mp4
 # 预览重命名结果
 frame-sense vacation.mp4 --preview
 
-# 批量处理目录
-frame-sense ./photos --directory
+# 批量处理目录（自动识别）
+frame-sense ./photos
 
 # 输出到指定目录
-frame-sense ./videos --directory --output ./renamed_videos
+frame-sense ./videos --output ./renamed_videos
 ```
 
 #### 高级配置
@@ -138,7 +94,7 @@ frame-sense config --filename-length 20
 frame-sense config --batch-size 10
 
 # 启用详细输出模式
-frame-sense ./media --directory --verbose
+frame-sense ./media --verbose
 ```
 
 #### 系统检查
@@ -155,6 +111,39 @@ frame-sense --formats
 # 查看当前配置
 frame-sense --config
 ```
+
+## 🔧 命令详解
+
+### 主命令
+```bash
+frame-sense [文件路径] [选项]
+```
+
+#### 选项说明
+- `-p, --preview` - 预览重命名结果，不实际执行
+- `-o, --output <dir>` - 指定输出目录
+- `-b, --batch <size>` - 设置批量处理大小
+- `-v, --verbose` - 启用详细输出和调试模式
+- `-t, --test` - 测试 AI API 连接
+- `--config` - 显示当前配置信息
+- `--formats` - 显示支持的媒体格式
+- `--deps` - 检查系统依赖
+
+> **注意**: 程序会自动判断输入路径是文件还是目录，无需指定 `-d` 选项。
+
+### 配置管理
+```bash
+frame-sense config [选项]
+```
+
+#### 配置选项
+- `--api <key>` - 设置 Google Gemini API Key
+- `--batch-size <size>` - 设置默认批量处理大小
+- `--filename-length <length>` - 设置文件名字符长度限制
+- `--custom-prompt <template>` - 设置自定义分析提示模板
+- `--reset-prompt` - 重置提示模板到默认值
+- `--reset` - 重置所有配置到默认值
+
 
 ## 📊 支持的格式
 
@@ -237,12 +226,50 @@ export FRAME_SENSE_MAX_CONCURRENCY="4"
 
 ### 视频处理流程
 1. **视频分析** - 获取视频元信息（时长、分辨率等）
-2. **关键帧提取** - 智能提取代表性帧
+2. **帧提取策略** - 根据配置选择合适的帧提取方式
 3. **帧预处理** - 优化图像质量和尺寸
 4. **批量 AI 分析** - 将提取的帧发送给 AI 进行分析
 5. **结果聚合** - 合并多帧分析结果
 6. **文件重命名** - 生成语义化的视频文件名
 7. **临时文件清理** - 自动清理提取的帧文件
+
+#### 帧提取策略详解
+
+Frame-Sense 提供三种不同的帧提取策略，适应不同的使用场景：
+
+| 策略 | 说明 | 适用场景 | 优势 | 注意事项 |
+|------|------|----------|------|----------|
+| **single** | 提取第10帧作为代表帧 | 快速预览、简单内容视频 | 处理速度快、资源占用少 | 可能错过重要内容变化 |
+| **multiple** | 均匀提取5帧覆盖整个视频 | 一般视频内容、教程视频 | 内容覆盖全面、结果可控 | 处理时间适中 |
+| **keyframes** | 提取所有关键帧（场景变化点） | 复杂场景、动作密集视频 | 捕获所有重要场景变化 | 提取帧数不可控、耗时较长 |
+
+**配置帧提取策略：**
+
+通过配置文件设置（推荐）：
+```bash
+# 查看当前配置
+frame-sense --config
+
+# 手动编辑配置文件，修改 frameExtractionStrategy 字段：
+# ~/.config/frame-sense-nodejs/frame-sense.json
+{
+  "frameExtractionStrategy": "multiple"  // 可选：single, multiple, keyframes
+}
+```
+
+程序化设置：
+```typescript
+import { getConfigManager } from '@/core/config';
+
+const config = getConfigManager();
+config.setFrameExtractionStrategy('keyframes');
+```
+
+**策略选择建议：**
+- 📷 **日常视频、Vlog** → `single`（快速处理）
+- 🎬 **电影、长视频** → `multiple`（全面覆盖）
+- 🎮 **游戏录像、运动视频** → `keyframes`（捕获动作变化）
+- 📚 **教程、演示视频** → `multiple`（平衡效果与速度）
 
 ### 混合批处理优化
 - **智能分组**: 将图片和视频帧混合分组，最大化 AI API 使用效率
@@ -265,31 +292,10 @@ export FRAME_SENSE_MAX_CONCURRENCY="4"
 ### 数据安全
 - 图像数据会发送到 Google Gemini API 进行分析
 - 不会永久存储用户的图像数据
-- 请确保符合你的数据使用政策
 
-## 🛠️ 开发
 
-### 本地开发
-```bash
-# 克隆仓库
-git clone https://github.com/Shadowzzh/frame-sense.git
 
-# 安装依赖
-cd frame-sense
-npm install
-
-# 开发模式运行
-npm run dev
-
-# 构建项目
-npm run build
-
-# 运行测试
-npm run lint
-npm run type-check
-```
-
-### 技术栈
+## 技术栈
 - **TypeScript** - 类型安全的 JavaScript
 - **Node.js** - 运行时环境
 - **Commander.js** - CLI 框架
