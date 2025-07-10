@@ -248,6 +248,47 @@ export interface DependencyCheckResult {
   path?: string;
 }
 
+/** 媒体处理批次项 */
+export interface MediaBatchItem {
+  /** 原始文件路径 */
+  originalPath: string;
+  /** 处理后的图像路径列表（图片为自身，视频为提取的帧） */
+  framePaths: string[];
+  /** 媒体类型 */
+  mediaType: MediaFileType;
+  /** 额外元数据 */
+  metadata?: {
+    /** 视频信息（仅视频文件） */
+    videoInfo?: VideoFrameInfo;
+    /** 原始文件扩展名 */
+    extension: string;
+  };
+}
+
+/** 媒体批量处理结果 */
+export interface MediaBatchResult {
+  /** 批次项 */
+  batchItem: MediaBatchItem;
+  /** AI 分析结果 */
+  analysisResult?: AnalysisResult;
+  /** 是否成功 */
+  success: boolean;
+  /** 错误信息 */
+  error?: string;
+}
+
+/** 混合批量处理统计 */
+export interface MixedBatchStats extends BatchProcessingStats {
+  /** 图片文件数 */
+  imageFiles: number;
+  /** 视频文件数 */
+  videoFiles: number;
+  /** 总帧数 */
+  totalFrames: number;
+  /** 帧提取时间 */
+  frameExtractionTime: number;
+}
+
 /** 临时文件清理函数类型 */
 export type CleanupFunction = () => void | Promise<void>;
 

@@ -6,13 +6,9 @@
 import { dirname, join } from "node:path";
 import { AIAnalyzer, AIBatchProcessor } from "@/core/ai-analyzer";
 import { getConfigManager } from "@/core/config";
+import { MediaBatchProcessor } from "@/core/media-batch-processor";
 import { VideoProcessor } from "@/core/video-processor";
-import type {
-  AnalysisResult,
-  BatchProcessingStats,
-  MediaFileInfo,
-  RenameResult,
-} from "@/types";
+import type { AnalysisResult, MixedBatchStats, RenameResult } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
 
 export class SmartRenamer {
@@ -22,6 +18,8 @@ export class SmartRenamer {
   private batchProcessor: AIBatchProcessor;
   /** 视频处理器 */
   private videoProcessor: VideoProcessor;
+  /** 媒体批量处理器 */
+  private mediaBatchProcessor: MediaBatchProcessor;
   /** 重命名历史记录 */
   private renameHistory: RenameResult[] = [];
 
@@ -29,6 +27,7 @@ export class SmartRenamer {
     this.analyzer = new AIAnalyzer();
     this.batchProcessor = new AIBatchProcessor();
     this.videoProcessor = new VideoProcessor();
+    this.mediaBatchProcessor = new MediaBatchProcessor();
   }
 
   /**
@@ -129,7 +128,7 @@ export class SmartRenamer {
   }
 
   /**
-   * 批量重命名文件
+   * 批量重命名文件（新版本 - 支持视频批量处理）
    * @param filePaths - 文件路径列表
    * @param outputDir - 输出目录（可选）
    * @param preview - 是否仅预览
@@ -143,7 +142,7 @@ export class SmartRenamer {
     onProgress?: (current: number, total: number) => void,
   ): Promise<{
     results: RenameResult[];
-    stats: BatchProcessingStats;
+    stats: MixedBatchStats;
   }> {
     const startTime = Date.now();
     const config = getConfigManager();
@@ -152,50 +151,25 @@ export class SmartRenamer {
       console.log(`开始批量重命名 ${filePaths.length} 个文件`);
     }
 
-    // 按文件类型分组
-    const imageFiles: string[] = [];
-    const videoFiles: string[] = [];
-    const validFiles: MediaFileInfo[] = [];
-
-    for (const filePath of filePaths) {
-      const fileInfo = FileUtils.getFileInfo(filePath);
-      if (fileInfo) {
-        validFiles.push(fileInfo);
-        if (fileInfo.type === "image") {
-          imageFiles.push(filePath);
-        } else if (fileInfo.type === "video") {
-          videoFiles.push(filePath);
+    // 使用新的媒体批量处理器进行处理
+    const batchResult = await this.mediaBatchProcessor.batchProcessMedia(
+      filePaths,
+      undefined,
+      (current, total, _currentFile) => {
+        if (onProgress) {
+          onProgress(current, total);
         }
-      }
-    }
+      },
+    );
 
-    if (config.isVerboseMode()) {
-      console.log(
-        `找到 ${imageFiles.length} 个图像文件，${videoFiles.length} 个视频文件`,
-      );
-    }
+    // 将媒体批量处理结果转换为重命名结果
+    const renameResults: RenameResult[] = [];
 
-    const allResults: RenameResult[] = [];
+    for (const mediaResult of batchResult.results) {
+      const { batchItem, analysisResult, success, error } = mediaResult;
 
-    // 批量处理图像文件
-    if (imageFiles.length > 0) {
-      const { results: analysisResults } =
-        await this.batchProcessor.smartBatchProcess(
-          imageFiles,
-          undefined,
-          (current, _total) => {
-            if (onProgress) {
-              // 简化批次进度显示
-              onProgress(current, filePaths.length);
-            }
-          },
-        );
-
-      // 生成重命名结果
-      for (const analysisResult of analysisResults) {
-        const fileInfo = validFiles.find(
-          (f) => f.path === analysisResult.originalPath,
-        );
+      if (success && analysisResult) {
+        const fileInfo = FileUtils.getFileInfo(batchItem.originalPath);
         if (fileInfo) {
           const targetDir = outputDir || dirname(fileInfo.path);
           const newFilePath = this.generateNewFilePath(
@@ -204,63 +178,64 @@ export class SmartRenamer {
             fileInfo.extension,
           );
 
-          let success = true;
-          let error: string | undefined;
+          let renameSuccess = true;
+          let renameError: string | undefined;
 
           if (!preview) {
-            success = FileUtils.renameFile(fileInfo.path, newFilePath);
-            if (!success) {
-              error = "重命名失败";
+            renameSuccess = FileUtils.renameFile(fileInfo.path, newFilePath);
+            if (!renameSuccess) {
+              renameError = "重命名失败";
             }
           }
 
-          const result: RenameResult = {
+          const renameResult: RenameResult = {
             originalPath: fileInfo.path,
             newPath: newFilePath,
-            success,
+            success: renameSuccess,
             analysisResult,
-            error,
+            error: renameError,
           };
 
-          allResults.push(result);
-          this.renameHistory.push(result);
+          renameResults.push(renameResult);
+          this.renameHistory.push(renameResult);
+        }
+      } else {
+        // 处理失败的情况
+        const fileInfo = FileUtils.getFileInfo(batchItem.originalPath);
+        if (fileInfo) {
+          const renameResult: RenameResult = {
+            originalPath: fileInfo.path,
+            newPath: fileInfo.path,
+            success: false,
+            analysisResult: {
+              originalPath: fileInfo.path,
+              suggestedName: fileInfo.name,
+              description: "分析失败",
+              tags: [],
+              timestamp: Date.now(),
+              filename: fileInfo.name,
+            },
+            error: error || "分析失败",
+          };
+
+          renameResults.push(renameResult);
         }
       }
     }
 
-    // 处理视频文件
-    for (let i = 0; i < videoFiles.length; i++) {
-      const videoFile = videoFiles[i];
-      if (onProgress) {
-        onProgress(imageFiles.length + i + 1, filePaths.length);
-      }
-
-      try {
-        const result = await this.renameSingleFile(
-          videoFile,
-          outputDir,
-          preview,
-        );
-        allResults.push(result);
-      } catch (error) {
-        console.error(`处理视频文件失败 ${videoFile}:`, error);
-      }
-    }
-
     const endTime = Date.now();
-    const successfulResults = allResults.filter((r) => r.success);
-    const failedResults = allResults.filter((r) => !r.success);
+    const successfulResults = renameResults.filter((r) => r.success);
+    const failedResults = renameResults.filter((r) => !r.success);
 
-    const stats: BatchProcessingStats = {
+    // 使用混合批量处理统计信息
+    const stats: MixedBatchStats = {
+      ...batchResult.stats,
       totalFiles: filePaths.length,
       successfulFiles: successfulResults.length,
       failedFiles: failedResults.length,
       totalProcessingTime: endTime - startTime,
       batchStats: {
-        totalBatches:
-          Math.ceil(
-            imageFiles.length / config.getBatchProcessingConfig().batchSize,
-          ) + videoFiles.length,
+        ...batchResult.stats.batchStats,
         successfulBatches: successfulResults.length,
         failedBatches: failedResults.length,
       },
@@ -270,52 +245,13 @@ export class SmartRenamer {
       console.log(
         `批量重命名完成: ${successfulResults.length} 成功，${failedResults.length} 失败`,
       );
+      console.log(
+        `处理统计: 图片 ${stats.imageFiles} 个, 视频 ${stats.videoFiles} 个, 总帧数 ${stats.totalFrames}`,
+      );
     }
 
-    return { results: allResults, stats };
+    return { results: renameResults, stats };
   }
-
-  /**
-   * 重命名目录中的所有媒体文件
-   * @param dirPath - 目录路径
-   * @param outputDir - 输出目录（可选）
-   * @param preview - 是否仅预览
-   * @param onProgress - 进度回调
-   * @returns 重命名结果
-   */
-  // public async renameDirectory(
-  //   dirPath: string,
-  //   outputDir?: string,
-  //   preview = false,
-  //   onProgress?: (current: number, total: number, currentFile: string) => void,
-  // ): Promise<{
-  //   results: RenameResult[];
-  //   stats: BatchProcessingStats;
-  // }> {
-  //   const config = getConfigManager();
-
-  //   if (!FileUtils.fileExists(dirPath)) {
-  //     throw new Error(`目录不存在: ${dirPath}`);
-  //   }
-
-  //   if (config.isDebugMode()) {
-  //     console.log(`开始处理目录: ${dirPath}`);
-  //   }
-
-  //   // 获取目录中的所有媒体文件
-  //   const mediaFiles = FileUtils.getMediaFiles(dirPath, false); // 不递归
-  //   const filePaths = mediaFiles.map((file) => file.path);
-
-  //   if (filePaths.length === 0) {
-  //     throw new Error(`目录中没有找到媒体文件: ${dirPath}`);
-  //   }
-
-  //   if (config.isVerboseMode()) {
-  //     console.log(`找到 ${filePaths.length} 个媒体文件`);
-  //   }
-
-  //   return this.batchRenameFiles(filePaths, outputDir, preview, onProgress);
-  // }
 
   /**
    * 分析视频文件
@@ -456,6 +392,7 @@ export class SmartRenamer {
     this.analyzer.destroy();
     this.batchProcessor.destroy();
     this.videoProcessor.destroy();
+    this.mediaBatchProcessor.destroy();
   }
 }
 

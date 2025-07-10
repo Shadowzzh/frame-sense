@@ -10,6 +10,7 @@ import type {
   AnalysisResult,
   AppConfig,
   BatchProcessingStats,
+  MixedBatchStats,
   RenameResult,
 } from "@/types";
 import { FileUtils } from "./file-utils";
@@ -151,7 +152,7 @@ export class UIUtils {
    * 打印统计信息
    * @param stats - 统计数据
    */
-  static printStatistics(stats: BatchProcessingStats): void {
+  static printStatistics(stats: BatchProcessingStats | MixedBatchStats): void {
     console.log(chalk.bold("\n 统计信息:"));
     console.log("─".repeat(50));
     console.log(`${chalk.gray("总文件数:")} ${chalk.bold(stats.totalFiles)}`);
@@ -160,6 +161,24 @@ export class UIUtils {
     console.log(
       `${chalk.gray("处理时间:")} ${chalk.bold((stats.totalProcessingTime / 1000).toFixed(2))}s`,
     );
+
+    // 如果是混合批量处理统计，显示更详细的信息
+    if ("imageFiles" in stats && "videoFiles" in stats) {
+      const mixedStats = stats as MixedBatchStats;
+      console.log(chalk.bold("\n 文件类型统计:"));
+      console.log(
+        `${chalk.gray("图像文件:")} ${chalk.cyan(mixedStats.imageFiles)}`,
+      );
+      console.log(
+        `${chalk.gray("视频文件:")} ${chalk.cyan(mixedStats.videoFiles)}`,
+      );
+      console.log(
+        `${chalk.gray("总帧数:")} ${chalk.cyan(mixedStats.totalFrames)}`,
+      );
+      console.log(
+        `${chalk.gray("帧提取时间:")} ${chalk.bold((mixedStats.frameExtractionTime / 1000).toFixed(2))}s`,
+      );
+    }
 
     // 批次统计
     if (stats.batchStats.totalBatches > 1) {
