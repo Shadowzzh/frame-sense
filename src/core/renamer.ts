@@ -86,7 +86,14 @@ export class SmartRenamer {
       }
 
       // 执行重命名
-      const success = FileUtils.renameFile(filePath, newFilePath);
+      let success: boolean;
+      if (outputDir && outputDir !== dirname(filePath)) {
+        // 如果指定了输出目录且与原文件目录不同，则复制文件
+        success = FileUtils.copyFile(filePath, newFilePath);
+      } else {
+        // 否则移动文件
+        success = FileUtils.renameFile(filePath, newFilePath);
+      }
 
       const result: RenameResult = {
         originalPath: filePath,
@@ -176,7 +183,13 @@ export class SmartRenamer {
           let renameError: string | undefined;
 
           if (!preview) {
-            renameSuccess = FileUtils.renameFile(fileInfo.path, newFilePath);
+            if (outputDir && outputDir !== dirname(fileInfo.path)) {
+              // 如果指定了输出目录且与原文件目录不同，则复制文件
+              renameSuccess = FileUtils.copyFile(fileInfo.path, newFilePath);
+            } else {
+              // 否则移动文件
+              renameSuccess = FileUtils.renameFile(fileInfo.path, newFilePath);
+            }
             if (!renameSuccess) {
               renameError = "重命名失败";
             }

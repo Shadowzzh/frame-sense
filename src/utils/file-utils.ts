@@ -4,6 +4,7 @@
  */
 
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -252,6 +253,41 @@ export class FileUtils {
     }
 
     return uniqueName;
+  }
+
+  /**
+   * 安全地复制文件
+   * @param sourcePath - 源文件路径
+   * @param targetPath - 目标文件路径
+   * @returns 是否成功
+   */
+  public static copyFile(sourcePath: string, targetPath: string): boolean {
+    try {
+      if (!FileUtils.fileExists(sourcePath)) {
+        return false;
+      }
+
+      // 确保目标目录存在
+      const targetDir = dirname(targetPath);
+      if (!FileUtils.fileExists(targetDir)) {
+        mkdirSync(targetDir, { recursive: true });
+      }
+
+      // 如果目标文件已存在，生成唯一名称
+      if (FileUtils.fileExists(targetPath)) {
+        const dir = dirname(targetPath);
+        const name = basename(targetPath, extname(targetPath));
+        const ext = extname(targetPath).slice(1);
+        const uniqueName = FileUtils.generateUniqueFilename(dir, name, ext);
+        targetPath = join(dir, `${uniqueName}.${ext}`);
+      }
+
+      copyFileSync(sourcePath, targetPath);
+      return true;
+    } catch (error) {
+      console.error(`复制文件失败 ${sourcePath} -> ${targetPath}:`, error);
+      return false;
+    }
   }
 
   /**
