@@ -56,7 +56,9 @@ export class MediaBatchProcessor {
     const mediaBatchItems = await this.preprocessFiles(filePaths);
     const frameExtractionTime = Date.now() - frameExtractionStart;
 
-    progressLogger.succeedProgress(`帧提取完成，耗时 ${frameExtractionTime}ms`);
+    progressLogger.succeedProgress(
+      `帧提取完成，耗时 ${frameExtractionTime / 1000} 秒`,
+    );
     progressLogger.debug(`总共准备 ${mediaBatchItems.length} 个处理项`);
 
     // 第二步：创建混合批次
@@ -250,7 +252,7 @@ export class MediaBatchProcessor {
 
       // 更新进度显示当前进度
       progressLogger.updateProgress(
-        `AI分析批次 (${i + 1}/${mixedBatches.length}): ${batch.framePaths.length} 帧`,
+        `AI分析批次 (${i + 1}/${mixedBatches.length}): ${batch.framePaths.length} 张`,
       );
 
       try {

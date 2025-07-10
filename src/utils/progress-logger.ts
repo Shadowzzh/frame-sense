@@ -39,7 +39,7 @@ export class ProgressLogger extends EventEmitter {
     this.stopProgress();
     this.spinner = ora({
       text,
-      color: "cyan",
+      color: "green",
     }).start();
     this.isSpinnerActive = true;
   }
