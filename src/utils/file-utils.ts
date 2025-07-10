@@ -65,6 +65,22 @@ export class FileUtils {
   }
 
   /**
+   * 检查路径是否为目录
+   * @param dirPath - 目录路径
+   * @returns 是否为目录
+   */
+  public static isDirectory(dirPath: string): boolean {
+    try {
+      if (!FileUtils.fileExists(dirPath)) {
+        return false;
+      }
+      return statSync(dirPath).isDirectory();
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * 获取文件信息
    * @param filePath - 文件路径
    * @returns 文件信息或 null

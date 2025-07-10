@@ -154,8 +154,6 @@ export interface AppConfig {
 
 /** 命令行选项 */
 export interface CommandOptions {
-  /** 是否分析整个目录 */
-  directory?: boolean;
   /** 是否测试 API 连接 */
   test?: boolean;
   /** 是否测试 Spinner */

@@ -67,7 +67,6 @@ class FrameSenseCLI {
       .description(packageJson.description)
       .version(packageJson.version)
       .argument("[file]", "要处理的文件或目录路径")
-      .option("-d, --directory", "分析整个目录中的媒体文件")
       .option("-t, --test", "测试 AI API 连接")
       .option("-p, --preview", "预览重命名结果，不实际执行")
       .option("-o, --output <dir>", "指定输出目录")
@@ -155,8 +154,9 @@ class FrameSenseCLI {
         process.exit(1);
       }
 
-      // 执行主要功能
-      if (options.directory) {
+      // 自动判断是文件还是目录并执行对应功能
+      const isDirectory = FileUtils.isDirectory(filePath);
+      if (isDirectory) {
         await this.processDirectory(filePath, options);
       } else {
         await this.processSingleFile(filePath, options);

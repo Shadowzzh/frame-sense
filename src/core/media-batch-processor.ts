@@ -252,7 +252,7 @@ export class MediaBatchProcessor {
 
       // 更新进度显示当前进度
       progressLogger.updateProgress(
-        `AI分析批次 (${i + 1}/${mixedBatches.length}): ${batch.framePaths.length} 张`,
+        `AI分析批次 (${i + 1}/${mixedBatches.length}): 每次 ${batch.framePaths.length} 张`,
       );
 
       try {
