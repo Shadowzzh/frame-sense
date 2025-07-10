@@ -89,10 +89,6 @@ export class ConfigManager {
       }
     }
 
-    if (process.env.FRAME_SENSE_DEBUG === "true") {
-      config.debug = true;
-    }
-
     if (process.env.FRAME_SENSE_VERBOSE === "true") {
       config.verbose = true;
     }
@@ -322,32 +318,16 @@ export class ConfigManager {
   }
 
   /**
-   * 是否启用调试模式
-   * @returns 是否启用调试模式
-   */
-  public isDebugMode(): boolean {
-    return this.currentConfig.debug || false;
-  }
-
-  /**
-   * 设置调试模式
-   * @param debug - 是否启用调试模式
-   */
-  public setDebugMode(debug: boolean): void {
-    this.currentConfig.debug = debug;
-  }
-
-  /**
-   * 是否启用详细输出
-   * @returns 是否启用详细输出
+   * 是否启用详细输出和调试模式
+   * @returns 是否启用详细输出和调试模式
    */
   public isVerboseMode(): boolean {
     return this.currentConfig.verbose || false;
   }
 
   /**
-   * 设置详细输出模式
-   * @param verbose - 是否启用详细输出
+   * 设置详细输出和调试模式
+   * @param verbose - 是否启用详细输出和调试模式
    */
   public setVerboseMode(verbose: boolean): void {
     this.currentConfig.verbose = verbose;
@@ -428,7 +408,6 @@ export async function interactiveConfig(options: {
   /**  */
   api?: string;
   batchSize?: number;
-  debug?: boolean;
   verbose?: boolean;
   filenameLength?: number;
   customPrompt?: string;
@@ -447,12 +426,7 @@ export async function interactiveConfig(options: {
       manager.setBatchProcessingConfig({ batchSize: options.batchSize });
     }
 
-    // 设置调试模式
-    if (options.debug !== undefined) {
-      manager.setDebugMode(options.debug);
-    }
-
-    // 设置详细输出
+    // 设置详细输出和调试模式
     if (options.verbose !== undefined) {
       manager.setVerboseMode(options.verbose);
     }

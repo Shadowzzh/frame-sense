@@ -401,8 +401,9 @@ export class UIUtils {
     console.log(
       `  ${chalk.cyan("--custom-prompt <template>")}  设置自定义 prompt 模板`,
     );
-    console.log(`  ${chalk.cyan("--debug")}             启用调试模式`);
-    console.log(`  ${chalk.cyan("--verbose")}           启用详细输出`);
+    console.log(
+      `  ${chalk.cyan("--verbose")}           启用详细输出和调试模式`,
+    );
     console.log(`  ${chalk.cyan("--config <file>")}     指定配置文件路径`);
     console.log(`  ${chalk.cyan("-h, --help")}          显示帮助信息`);
     console.log(`  ${chalk.cyan("-v, --version")}       显示版本信息`);
@@ -462,10 +463,7 @@ export class UIUtils {
     );
     console.log(`  ${chalk.cyan("FRAME_SENSE_BATCH_SIZE")}   批量处理大小`);
     console.log(
-      `  ${chalk.cyan("FRAME_SENSE_DEBUG")}        启用调试模式 (true/false)`,
-    );
-    console.log(
-      `  ${chalk.cyan("FRAME_SENSE_VERBOSE")}      启用详细输出 (true/false)`,
+      `  ${chalk.cyan("FRAME_SENSE_VERBOSE")}      启用详细输出和调试模式 (true/false)`,
     );
     console.log();
 

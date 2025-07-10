@@ -72,8 +72,7 @@ class FrameSenseCLI {
       .option("-o, --output <dir>", "指定输出目录")
       .option("-b, --batch <size>", "设置批量处理大小", parseInt)
       .option("--test-spinner", "测试进度条动画")
-      .option("--debug", "启用调试模式")
-      .option("--verbose", "启用详细输出")
+      .option("-v, --verbose", "启用详细输出和调试模式")
       .option("--config", "显示配置信息")
       .option("--formats", "显示支持的格式")
       .option("--deps", "检查依赖")
@@ -165,7 +164,7 @@ class FrameSenseCLI {
       UIUtils.logError(
         `执行失败: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
-      if (this.config.isDebugMode()) {
+      if (this.config.isVerboseMode()) {
         console.error(error);
       }
       process.exit(1);
@@ -238,14 +237,9 @@ class FrameSenseCLI {
   /** 应用命令行选项到配置 */
   private async applyOptionsToConfig(options: CommandOptions) {
     const updates: {
-      debug?: boolean;
       verbose?: boolean;
       batchSize?: number;
     } = {};
-
-    if (options.debug !== undefined) {
-      updates.debug = options.debug;
-    }
 
     if (options.verbose !== undefined) {
       updates.verbose = options.verbose;

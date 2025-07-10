@@ -50,7 +50,7 @@ export class SmartRenamer {
       throw new Error(`无法获取文件信息: ${filePath}`);
     }
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(`开始分析文件: ${filePath}`);
     }
 
@@ -99,7 +99,7 @@ export class SmartRenamer {
       // 记录到历史
       this.renameHistory.push(result);
 
-      if (config.isDebugMode()) {
+      if (config.isVerboseMode()) {
         console.log(
           `文件重命名${success ? "成功" : "失败"}: ${filePath} -> ${newFilePath}`,
         );
@@ -147,7 +147,7 @@ export class SmartRenamer {
     const startTime = Date.now();
     const config = getConfigManager();
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(`开始批量重命名 ${filePaths.length} 个文件`);
     }
 
@@ -241,7 +241,7 @@ export class SmartRenamer {
       },
     };
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(
         `批量重命名完成: ${successfulResults.length} 成功，${failedResults.length} 失败`,
       );
@@ -261,7 +261,7 @@ export class SmartRenamer {
   private async analyzeVideo(videoPath: string): Promise<AnalysisResult> {
     const config = getConfigManager();
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(`提取视频帧: ${videoPath}`);
     }
 

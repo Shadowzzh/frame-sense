@@ -49,7 +49,7 @@ export class MediaBatchProcessor {
     const startTime = Date.now();
     const config = getConfigManager();
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(`开始批量处理 ${filePaths.length} 个媒体文件`);
     }
 
@@ -58,7 +58,7 @@ export class MediaBatchProcessor {
     const mediaBatchItems = await this.preprocessFiles(filePaths, onProgress);
     const frameExtractionTime = Date.now() - frameExtractionStart;
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(`帧提取完成，耗时 ${frameExtractionTime}ms`);
       console.log(`总共准备 ${mediaBatchItems.length} 个处理项`);
     }
@@ -66,7 +66,7 @@ export class MediaBatchProcessor {
     // 第二步：创建混合批次
     const mixedBatches = this.createMixedBatches(mediaBatchItems);
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(`创建 ${mixedBatches.length} 个混合批次进行AI分析`);
     }
 
@@ -93,7 +93,7 @@ export class MediaBatchProcessor {
       endTime - startTime,
     );
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(
         `批量处理完成: ${stats.successfulFiles}/${stats.totalFiles} 成功`,
       );
@@ -253,7 +253,7 @@ export class MediaBatchProcessor {
       0,
     );
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(
         `开始分析 ${mixedBatches.length} 个混合批次，共 ${totalFrames} 帧`,
       );
@@ -424,7 +424,7 @@ export class MediaBatchProcessor {
         }
       } catch (error) {
         const config = getConfigManager();
-        if (config.isDebugMode()) {
+        if (config.isVerboseMode()) {
           console.warn(`清理临时文件失败 ${tempFile}:`, error);
         }
       }

@@ -62,7 +62,7 @@ export class ImageProcessor {
       const originalWidth = metadata.width || 0;
       const originalHeight = metadata.height || 0;
 
-      if (config.isDebugMode()) {
+      if (config.isVerboseMode()) {
         console.log(`处理图像: ${imagePath}`);
         console.log(`原始尺寸: ${originalWidth}x${originalHeight}`);
       }
@@ -87,7 +87,7 @@ export class ImageProcessor {
           withoutEnlargement: true,
         });
 
-        if (config.isDebugMode()) {
+        if (config.isVerboseMode()) {
           console.log(`调整尺寸到: ${newSize.width}x${newSize.height}`);
         }
       }
@@ -125,7 +125,7 @@ export class ImageProcessor {
       // 添加到临时文件列表
       this.tempFiles.push(outputPath);
 
-      if (config.isDebugMode()) {
+      if (config.isVerboseMode()) {
         const processedInfo = await sharp(outputPath).metadata();
         console.log(`处理完成: ${processedInfo.width}x${processedInfo.height}`);
       }
@@ -374,7 +374,7 @@ export class ImageProcessor {
           unlinkSync(filePath);
         }
       } catch (error) {
-        if (getConfigManager().isDebugMode()) {
+        if (getConfigManager().isVerboseMode()) {
           console.warn(`清理临时文件失败 ${filePath}:`, error);
         }
       }

@@ -148,9 +148,7 @@ export interface AppConfig {
   frameExtractionStrategy: FrameExtractionStrategy;
   /** 临时文件目录 */
   tempDirectory: string;
-  /** 是否启用调试模式（临时选项，不持久化） */
-  debug?: boolean;
-  /** 是否启用详细日志（临时选项，不持久化） */
+  /** 是否启用详细输出和调试模式（临时选项，不持久化） */
   verbose?: boolean;
 }
 
@@ -162,9 +160,7 @@ export interface CommandOptions {
   test?: boolean;
   /** 是否测试 Spinner */
   testSpinner?: boolean;
-  /** 是否启用调试模式 */
-  debug?: boolean;
-  /** 是否启用详细输出 */
+  /** 是否启用详细输出和调试模式 */
   verbose?: boolean;
   /** 是否仅预览不实际重命名 */
   preview?: boolean;
@@ -322,9 +318,7 @@ declare global {
       FRAME_SENSE_MODEL?: string;
       /** Frame-Sense 批量处理大小 */
       FRAME_SENSE_BATCH_SIZE?: string;
-      /** Frame-Sense 调试模式 */
-      FRAME_SENSE_DEBUG?: string;
-      /** Frame-Sense 详细输出模式 */
+      /** Frame-Sense 详细输出和调试模式 */
       FRAME_SENSE_VERBOSE?: string;
       /** Frame-Sense 临时目录 */
       FRAME_SENSE_TEMP_DIR?: string;

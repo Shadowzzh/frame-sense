@@ -370,7 +370,7 @@ export class VideoProcessor {
     return new Promise((resolve, reject) => {
       const config = getConfigManager();
 
-      if (config.isDebugMode()) {
+      if (config.isVerboseMode()) {
         console.log("FFmpeg 命令:", "ffmpeg", args.join(" "));
       }
 
@@ -406,7 +406,7 @@ export class VideoProcessor {
           unlinkSync(filePath);
         }
       } catch (error) {
-        if (getConfigManager().isDebugMode()) {
+        if (getConfigManager().isVerboseMode()) {
           console.warn(`清理临时文件失败 ${filePath}:`, error);
         }
       }

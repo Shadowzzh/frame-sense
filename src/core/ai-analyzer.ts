@@ -196,7 +196,7 @@ export class AIAnalyzer {
     let failedBatches = 0;
     let processedFiles = 0;
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       console.log(`开始批量分析 ${imagePaths.length} 个图像文件`);
       console.log(
         `分为 ${batches.length} 批，每批最多 ${batchConfig.batchSize} 个文件`,
@@ -218,7 +218,7 @@ export class AIAnalyzer {
         allResults.push(...batchResults);
         successfulBatches++;
 
-        if (config.isDebugMode()) {
+        if (config.isVerboseMode()) {
           console.log(
             `第 ${batchNumber} 批处理完成，获得 ${batchResults.length} 个结果`,
           );
@@ -282,7 +282,7 @@ export class AIAnalyzer {
     const prompt = this.generatePrompt(request.userPrompt);
     const fullPrompt = `${prompt}\n\n图像数量: ${request.imagePaths.length}`;
 
-    if (config.isDebugMode()) {
+    if (config.isVerboseMode()) {
       UIUtils.logDebug(
         `图像 base64 大小: ${FileUtils.formatFileSize(
           imageParts.reduce(
@@ -302,7 +302,7 @@ export class AIAnalyzer {
       });
       const text = result.text || "";
 
-      if (config.isDebugMode()) {
+      if (config.isVerboseMode()) {
         console.log(
           "AI 使用情况:",
           JSON.stringify(result.usageMetadata, null, 2),
