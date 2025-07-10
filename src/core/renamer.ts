@@ -139,7 +139,6 @@ export class SmartRenamer {
     filePaths: string[],
     outputDir?: string,
     preview = false,
-    onProgress?: (current: number, total: number) => void,
   ): Promise<{
     results: RenameResult[];
     stats: MixedBatchStats;
@@ -155,11 +154,6 @@ export class SmartRenamer {
     const batchResult = await this.mediaBatchProcessor.batchProcessMedia(
       filePaths,
       undefined,
-      (current, total, _currentFile) => {
-        if (onProgress) {
-          onProgress(current, total);
-        }
-      },
     );
 
     // 将媒体批量处理结果转换为重命名结果

@@ -13,7 +13,7 @@ import type {
   BatchProcessingStats,
 } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
-import { UIUtils } from "@/utils/ui-utils";
+import { progressLogger } from "@/utils/progress-logger";
 
 export class AIAnalyzer {
   /** Google Generative AI 实例 */
@@ -131,7 +131,7 @@ export class AIAnalyzer {
       if (FileUtils.fileExists(imagePath) && FileUtils.isImageFile(imagePath)) {
         validImages.push(imagePath);
       } else {
-        console.warn(`跳过无效图像文件: ${imagePath}`);
+        progressLogger.warn(`跳过无效图像文件: ${imagePath}`);
       }
     }
 
@@ -197,8 +197,8 @@ export class AIAnalyzer {
     let processedFiles = 0;
 
     if (config.isVerboseMode()) {
-      console.log(`开始批量分析 ${imagePaths.length} 个图像文件`);
-      console.log(
+      progressLogger.info(`开始批量分析 ${imagePaths.length} 个图像文件`);
+      progressLogger.info(
         `分为 ${batches.length} 批，每批最多 ${batchConfig.batchSize} 个文件`,
       );
     }
@@ -209,7 +209,7 @@ export class AIAnalyzer {
 
       try {
         if (config.isVerboseMode()) {
-          console.log(
+          progressLogger.info(
             `处理第 ${batchNumber}/${batches.length} 批，包含 ${batch.length} 个文件`,
           );
         }
@@ -219,12 +219,12 @@ export class AIAnalyzer {
         successfulBatches++;
 
         if (config.isVerboseMode()) {
-          console.log(
+          progressLogger.info(
             `第 ${batchNumber} 批处理完成，获得 ${batchResults.length} 个结果`,
           );
         }
       } catch (error) {
-        console.error(`第 ${batchNumber} 批处理失败:`, error);
+        progressLogger.error(`第 ${batchNumber} 批处理失败: ${error}`);
         failedBatches++;
       }
 
@@ -283,7 +283,7 @@ export class AIAnalyzer {
     const fullPrompt = `${prompt}\n\n图像数量: ${request.imagePaths.length}`;
 
     if (config.isVerboseMode()) {
-      UIUtils.logDebug(
+      progressLogger.debug(
         `图像 base64 大小: ${FileUtils.formatFileSize(
           imageParts.reduce(
             (sum, p) => sum + FileUtils.base64EncodedSize(p.inlineData.data),
@@ -291,7 +291,7 @@ export class AIAnalyzer {
           ),
         )}`,
       );
-      UIUtils.logDebug(`发送给 AI 的提示词: ${fullPrompt}`);
+      progressLogger.debug(`发送给 AI 的提示词: ${fullPrompt}`);
     }
 
     try {
@@ -303,11 +303,10 @@ export class AIAnalyzer {
       const text = result.text || "";
 
       if (config.isVerboseMode()) {
-        console.log(
-          "AI 使用情况:",
-          JSON.stringify(result.usageMetadata, null, 2),
+        progressLogger.info(
+          `AI 使用情况: ${JSON.stringify(result.usageMetadata, null, 2)}`,
         );
-        console.log("AI 响应:", text);
+        progressLogger.info(`AI 响应: ${text}`);
       }
 
       // 解析响应
@@ -355,7 +354,7 @@ export class AIAnalyzer {
 
       // 确保结果数量与图像数量匹配
       if (results.length !== imagePaths.length) {
-        console.warn(
+        progressLogger.warn(
           `结果数量 (${results.length}) 与图像数量 (${imagePaths.length}) 不匹配`,
         );
       }
@@ -373,7 +372,7 @@ export class AIAnalyzer {
 
       return analysisResult;
     } catch (error) {
-      console.error("解析 AI 响应失败:", error);
+      progressLogger.error(`解析 AI 响应失败: ${error}`);
 
       // 创建默认结果
       return imagePaths.map((imagePath, index) => ({

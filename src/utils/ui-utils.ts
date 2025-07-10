@@ -5,7 +5,6 @@
 
 import boxen from "boxen";
 import chalk from "chalk";
-import ora, { type Ora } from "ora";
 import type {
   AnalysisResult,
   AppConfig,
@@ -16,19 +15,6 @@ import type {
 import { FileUtils } from "./file-utils";
 
 export class UIUtils {
-  /**
-   * 创建加载动画
-   * @param text - 显示文本
-   * @returns Ora 实例
-   */
-  static createSpinner(text: string): Ora {
-    return ora({
-      text: chalk.green(text),
-      spinner: "aesthetic",
-      color: "green",
-    });
-  }
-
   /**
    * 记录成功消息
    * @param message - 消息内容

@@ -16,6 +16,7 @@ import { SmartRenamer } from "@/core/renamer";
 import { VideoProcessor } from "@/core/video-processor";
 import type { CommandOptions } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
+import { progressLogger } from "@/utils/progress-logger";
 import { getSignalHandler, SignalHandler } from "@/utils/signal-handler";
 import { UIUtils } from "@/utils/ui-utils";
 
@@ -49,7 +50,7 @@ class FrameSenseCLI {
     try {
       await this.program.parseAsync(process.argv);
     } catch (error) {
-      UIUtils.logError(
+      progressLogger.error(
         `程序执行失败: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
       process.exit(1);
@@ -102,7 +103,7 @@ class FrameSenseCLI {
   ) {
     try {
       if (options.testSpinner) {
-        UIUtils.createSpinner("加载中...").start();
+        progressLogger.startProgress("加载中...");
         await new Promise((r) => setTimeout(r, 100000000));
       }
 
@@ -161,7 +162,7 @@ class FrameSenseCLI {
         await this.processSingleFile(filePath, options);
       }
     } catch (error) {
-      UIUtils.logError(
+      progressLogger.error(
         `执行失败: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
       if (this.config.isVerboseMode()) {
@@ -227,7 +228,7 @@ class FrameSenseCLI {
       // 显示配置信息
       UIUtils.printConfigInfo(this.config.getConfig());
     } catch (error) {
-      UIUtils.logError(
+      progressLogger.error(
         `配置操作失败: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
       process.exit(1);
@@ -260,14 +261,14 @@ class FrameSenseCLI {
   private async testAPIConnection(): Promise<void> {
     UIUtils.printHeader("API 连接测试");
 
-    const spinner = UIUtils.createSpinner("测试 API 连接...");
-    spinner.start();
+    progressLogger.startProgress("测试 API 连接...");
 
     try {
       const analyzer = new AIAnalyzer();
       const result = await analyzer.testConnection();
 
       UIUtils.printAPITestResult(result);
+      progressLogger.succeedProgress("测试完成");
 
       analyzer.destroy();
     } catch (error) {
@@ -275,8 +276,7 @@ class FrameSenseCLI {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       });
-    } finally {
-      spinner.stop();
+      progressLogger.failProgress("测试失败");
     }
   }
 
@@ -297,8 +297,7 @@ class FrameSenseCLI {
     UIUtils.logInfo(`文件大小: ${FileUtils.formatFileSize(fileInfo.size)}`);
 
     // AI 处理
-    const spinner = UIUtils.createSpinner("AI 正在分析文件...");
-    spinner.start();
+    progressLogger.startProgress("AI 正在分析文件...");
 
     try {
       const result = await this.getRenamer().renameSingleFile(
@@ -307,7 +306,7 @@ class FrameSenseCLI {
         options.preview,
       );
 
-      spinner.stop();
+      progressLogger.succeedProgress("分析完成");
 
       // 预览模式
       if (options.preview) {
@@ -332,7 +331,7 @@ class FrameSenseCLI {
         UIUtils.printAnalysisResults([result.analysisResult]);
       }
     } catch (error) {
-      spinner.stop();
+      progressLogger.failProgress("分析失败");
       throw error;
     }
   }
@@ -369,20 +368,16 @@ class FrameSenseCLI {
       return;
     }
 
-    const spinner = UIUtils.createSpinner("批量处理文件...");
-    spinner.start();
+    progressLogger.startProgress("批量处理文件...");
 
     try {
       const { results, stats } = await this.getRenamer().batchRenameFiles(
         mediaFiles.map((f) => f.path),
         options.output,
         options.preview,
-        (current, total) => {
-          spinner.text = `处理文件 ${current}/${total}`;
-        },
       );
 
-      spinner.stop();
+      progressLogger.succeedProgress("批量处理完成");
 
       // 显示结果
       if (options.preview) {
@@ -418,7 +413,7 @@ class FrameSenseCLI {
       // 显示统计信息
       UIUtils.printStatistics(stats);
     } catch (error) {
-      spinner.stop();
+      progressLogger.failProgress("批量处理失败");
       throw error;
     }
   }

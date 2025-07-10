@@ -14,6 +14,7 @@ import type {
   MixedBatchStats,
 } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
+import { progressLogger } from "@/utils/progress-logger";
 
 export class MediaBatchProcessor {
   /** AI 批量处理器 */
@@ -35,46 +36,37 @@ export class MediaBatchProcessor {
    * 批量处理媒体文件
    * @param filePaths - 文件路径列表
    * @param userPrompt - 用户提示词
-   * @param onProgress - 进度回调
    * @returns 批量处理结果
    */
   public async batchProcessMedia(
     filePaths: string[],
     userPrompt?: string,
-    onProgress?: (current: number, total: number, currentFile: string) => void,
   ): Promise<{
     results: MediaBatchResult[];
     stats: MixedBatchStats;
   }> {
     const startTime = Date.now();
-    const config = getConfigManager();
 
-    if (config.isVerboseMode()) {
-      console.log(`开始批量处理 ${filePaths.length} 个媒体文件`);
-    }
+    progressLogger.info(`开始批量处理 ${filePaths.length} 个媒体文件`);
 
     // 第一步：预处理文件，提取帧
     const frameExtractionStart = Date.now();
-    const mediaBatchItems = await this.preprocessFiles(filePaths, onProgress);
+    progressLogger.startProgress("预处理文件，提取帧...");
+
+    const mediaBatchItems = await this.preprocessFiles(filePaths);
     const frameExtractionTime = Date.now() - frameExtractionStart;
 
-    if (config.isVerboseMode()) {
-      console.log(`帧提取完成，耗时 ${frameExtractionTime}ms`);
-      console.log(`总共准备 ${mediaBatchItems.length} 个处理项`);
-    }
+    progressLogger.succeedProgress(`帧提取完成，耗时 ${frameExtractionTime}ms`);
+    progressLogger.debug(`总共准备 ${mediaBatchItems.length} 个处理项`);
 
     // 第二步：创建混合批次
     const mixedBatches = this.createMixedBatches(mediaBatchItems);
-
-    if (config.isVerboseMode()) {
-      console.log(`创建 ${mixedBatches.length} 个混合批次进行AI分析`);
-    }
+    progressLogger.debug(`创建 ${mixedBatches.length} 个混合批次进行AI分析`);
 
     // 第三步：批量AI分析
     const analysisResults = await this.batchAnalyzeFrames(
       mixedBatches,
       userPrompt,
-      onProgress,
     );
 
     // 第四步：映射结果
@@ -93,11 +85,9 @@ export class MediaBatchProcessor {
       endTime - startTime,
     );
 
-    if (config.isVerboseMode()) {
-      console.log(
-        `批量处理完成: ${stats.successfulFiles}/${stats.totalFiles} 成功`,
-      );
-    }
+    progressLogger.info(
+      `批量处理完成: ${stats.successfulFiles}/${stats.totalFiles} 成功`,
+    );
 
     return { results, stats };
   }
@@ -105,26 +95,25 @@ export class MediaBatchProcessor {
   /**
    * 预处理文件：验证文件并提取视频帧
    * @param filePaths - 文件路径列表
-   * @param onProgress - 进度回调
    * @returns 媒体批次项列表
    */
   private async preprocessFiles(
     filePaths: string[],
-    onProgress?: (current: number, total: number, currentFile: string) => void,
   ): Promise<MediaBatchItem[]> {
     const mediaBatchItems: MediaBatchItem[] = [];
-    let processedCount = 0;
 
-    for (const filePath of filePaths) {
-      processedCount++;
-      if (onProgress) {
-        onProgress(processedCount, filePaths.length, filePath);
-      }
+    for (let i = 0; i < filePaths.length; i++) {
+      const filePath = filePaths[i];
+
+      // 更新进度显示当前进度
+      progressLogger.updateProgress(
+        `预处理文件 (${i + 1}/${filePaths.length}): ${filePath}`,
+      );
 
       try {
         const fileInfo = FileUtils.getFileInfo(filePath);
         if (!fileInfo) {
-          console.warn(`跳过无效文件: ${filePath}`);
+          progressLogger.warn(`跳过无效文件: ${filePath}`);
           continue;
         }
 
@@ -156,11 +145,11 @@ export class MediaBatchProcessor {
               },
             });
           } else {
-            console.warn(`无法从视频中提取帧: ${filePath}`);
+            progressLogger.warn(`无法从视频中提取帧: ${filePath}`);
           }
         }
       } catch (error) {
-        console.error(`预处理文件失败 ${filePath}:`, error);
+        progressLogger.error(`预处理文件失败 ${filePath}: ${error}`);
       }
     }
 
@@ -230,7 +219,6 @@ export class MediaBatchProcessor {
    * 批量分析帧
    * @param mixedBatches - 混合批次列表
    * @param userPrompt - 用户提示词
-   * @param onProgress - 进度回调
    * @returns 分析结果映射
    */
   private async batchAnalyzeFrames(
@@ -243,41 +231,33 @@ export class MediaBatchProcessor {
       }>;
     }[],
     userPrompt?: string,
-    onProgress?: (current: number, total: number, currentFile: string) => void,
   ): Promise<Map<string, AnalysisResult[]>> {
-    const config = getConfigManager();
     const analysisResults = new Map<string, AnalysisResult[]>();
-    let totalFramesProcessed = 0;
+
     const totalFrames = mixedBatches.reduce(
       (sum, batch) => sum + batch.framePaths.length,
       0,
     );
 
-    if (config.isVerboseMode()) {
-      console.log(
-        `开始分析 ${mixedBatches.length} 个混合批次，共 ${totalFrames} 帧`,
-      );
-    }
+    progressLogger.debug(
+      `开始分析 ${mixedBatches.length} 个混合批次，共 ${totalFrames} 帧`,
+    );
+
+    progressLogger.startProgress("AI分析批次...");
 
     for (let i = 0; i < mixedBatches.length; i++) {
       const batch = mixedBatches[i];
+
+      // 更新进度显示当前进度
+      progressLogger.updateProgress(
+        `AI分析批次 (${i + 1}/${mixedBatches.length}): ${batch.framePaths.length} 帧`,
+      );
 
       try {
         // 使用现有的 AI 批量处理器
         const batchResult = await this.aiBatchProcessor.smartBatchProcess(
           batch.framePaths,
           userPrompt,
-          (current, _total, _currentBatchh_totalBatcheses) => {
-            // 转换进度回调
-            if (onProgress) {
-              const globalProgress = totalFramesProcessed + current;
-              onProgress(
-                globalProgress,
-                totalFrames,
-                `批次 ${i + 1}/${mixedBatches.length}`,
-              );
-            }
-          },
         );
 
         // 将结果映射到原始文件
@@ -302,18 +282,15 @@ export class MediaBatchProcessor {
           }
         }
 
-        totalFramesProcessed += batch.framePaths.length;
-
-        if (config.isVerboseMode()) {
-          console.log(
-            `批次 ${i + 1}/${mixedBatches.length} 完成，处理了 ${batch.framePaths.length} 帧`,
-          );
-        }
+        progressLogger.debug(
+          `批次 ${i + 1}/${mixedBatches.length} 完成，处理了 ${batch.framePaths.length} 帧`,
+        );
       } catch (error) {
-        console.error(`批次 ${i + 1} 分析失败:`, error);
+        progressLogger.error(`批次 ${i + 1} 分析失败: ${error}`);
       }
     }
 
+    progressLogger.succeedProgress("AI分析完成");
     return analysisResults;
   }
 
@@ -423,10 +400,7 @@ export class MediaBatchProcessor {
           require("node:fs").unlinkSync(tempFile);
         }
       } catch (error) {
-        const config = getConfigManager();
-        if (config.isVerboseMode()) {
-          console.warn(`清理临时文件失败 ${tempFile}:`, error);
-        }
+        progressLogger.debug(`清理临时文件失败 ${tempFile}: ${error}`);
       }
     }
 
