@@ -4,7 +4,7 @@
  */
 
 import Conf from "conf";
-import inquirer from "inquirer";
+import type inquirer from "inquirer";
 import type {
   AppConfig,
   BatchProcessOptions,
@@ -13,6 +13,7 @@ import type {
   PromptConfig,
 } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
+import { safePrompt } from "@/utils/prompt-utils";
 
 export class ConfigManager {
   /** 配置存储实例 */
@@ -477,7 +478,18 @@ async function runInteractiveConfig(manager: ConfigManager): Promise<boolean> {
 
   console.log("\n🔧 交互式配置向导\n");
 
-  const answers = await inquirer.prompt([
+  interface ConfigAnswers {
+    api: string;
+    frameExtractionStrategy: FrameExtractionStrategy;
+    batchSize: number;
+    filenameLength: number;
+    useCustomPrompt: boolean;
+    customPrompt: string;
+    imageQuality: number;
+    verbose: boolean;
+  }
+
+  const answers = await safePrompt<ConfigAnswers>([
     {
       type: "input",
       name: "api",
@@ -579,6 +591,10 @@ async function runInteractiveConfig(manager: ConfigManager): Promise<boolean> {
   ] as unknown as Parameters<typeof inquirer.prompt>[0]);
 
   // 应用配置
+  if (!answers) {
+    return false;
+  }
+
   try {
     manager.setApiKey(answers.api);
     manager.setFrameExtractionStrategy(answers.frameExtractionStrategy);
@@ -610,33 +626,32 @@ export async function selectFrameExtractionStrategy(): Promise<FrameExtractionSt
 
   console.log("\n🎯 帧提取策略选择\n");
 
-  try {
-    const answer = await inquirer.prompt([
-      {
-        type: "list",
-        name: "strategy",
-        message: "请选择帧提取策略:",
-        choices: [
-          {
-            name: "单帧提取 (single) - 提取视频中间一帧，速度最快",
-            value: "single",
-          },
-          {
-            name: "多帧提取 (multiple) - 提取多个均匀分布的帧，分析更全面",
-            value: "multiple",
-          },
-          {
-            name: "关键帧提取 (keyframes) - 提取视频关键帧，质量最高",
-            value: "keyframes",
-          },
-        ],
-        default: currentConfig.frameExtractionStrategy,
-      },
-    ]);
-
-    return answer.strategy;
-  } catch (error) {
-    console.error("\n❌ 选择过程中出现错误:", error);
-    return null;
+  interface StrategyAnswer {
+    strategy: FrameExtractionStrategy;
   }
+
+  const answer = await safePrompt<StrategyAnswer>([
+    {
+      type: "list",
+      name: "strategy",
+      message: "请选择帧提取策略:",
+      choices: [
+        {
+          name: "单帧提取 (single) - 提取视频中间一帧，速度最快",
+          value: "single",
+        },
+        {
+          name: "多帧提取 (multiple) - 提取多个均匀分布的帧，分析更全面",
+          value: "multiple",
+        },
+        {
+          name: "关键帧提取 (keyframes) - 提取视频关键帧，质量最高",
+          value: "keyframes",
+        },
+      ],
+      default: currentConfig.frameExtractionStrategy,
+    },
+  ] as unknown as Parameters<typeof inquirer.prompt>[0]);
+
+  return answer?.strategy || null;
 }
