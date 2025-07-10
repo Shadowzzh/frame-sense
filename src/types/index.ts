@@ -176,6 +176,8 @@ export interface CommandOptions {
   deps?: boolean;
   /** 重置 prompt 配置到默认值 */
   resetPrompt?: boolean;
+  /** 帧提取策略 */
+  frameExtractionStrategy?: FrameExtractionStrategy;
 }
 
 /** AI 分析请求 */

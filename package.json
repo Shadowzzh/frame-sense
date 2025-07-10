@@ -21,6 +21,7 @@
     "lint": "biome check . & tsc --noEmit",
     "lint:fix": "biome check --fix . || tsx ",
     "format": "biome format --write .",
+    "fl": "pnpm format && pnpm lint",
     "type-check": "tsc --noEmit",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "pub": "npm publish --access public --no-git-checks"
@@ -68,10 +69,12 @@
   "homepage": "https://github.com/Shadowzzh/frame-sense#readme",
   "dependencies": {
     "@google/genai": "^1.8.0",
+    "@types/inquirer": "^9.0.8",
     "boxen": "^8.0.1",
     "chalk": "^5.3.0",
     "commander": "^14.0.0",
     "conf": "^14.0.0",
+    "inquirer": "^12.7.0",
     "ora": "^8.2.0",
     "sharp": "^0.34.2",
     "undici": "^7.11.0"

@@ -11,10 +11,19 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 import { AIAnalyzer } from "@/core/ai-analyzer";
-import { getConfigManager, interactiveConfig } from "@/core/config";
+import {
+  getConfigManager,
+  interactiveConfig,
+  selectFrameExtractionStrategy,
+} from "@/core/config";
+import type { CommandOptions, FrameExtractionStrategy } from "@/types";
+
+interface ExtendedCommandOptions extends CommandOptions {
+  frameStrategy?: FrameExtractionStrategy | boolean;
+}
+
 import { SmartRenamer } from "@/core/renamer";
 import { VideoProcessor } from "@/core/video-processor";
-import type { CommandOptions } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
 import { progressLogger } from "@/utils/progress-logger";
 import { getSignalHandler, SignalHandler } from "@/utils/signal-handler";
@@ -71,14 +80,39 @@ class FrameSenseCLI {
       .option("-p, --preview", "预览重命名结果，不实际执行")
       .option("-o, --output <dir>", "指定输出目录")
       .option("-b, --batch <size>", "设置批量处理大小", parseInt)
+      .option(
+        "-f, --frame-strategy [strategy]",
+        "设置帧提取策略 (single|multiple|keyframes)，不带值时进入交互选择",
+      )
       .option("--test-spinner", "测试进度条动画")
       .option("-v, --verbose", "启用详细输出和调试模式")
       .option("--config", "显示配置信息")
       .option("--formats", "显示支持的格式")
       .option("--deps", "检查依赖")
-      .action(async (filePath: string | undefined, options: CommandOptions) => {
-        await this.handleMainCommand(filePath, options);
-      });
+      .action(
+        async (
+          filePath: string | undefined,
+          options: ExtendedCommandOptions,
+        ) => {
+          // 处理 frameStrategy 选项映射
+          if (options.frameStrategy !== undefined) {
+            // 如果 frameStrategy 是 true (表示使用了 --frame-strategy 但没有提供值)
+            if (options.frameStrategy === true) {
+              // 进入交互式选择模式
+              const selectedStrategy = await selectFrameExtractionStrategy();
+              if (selectedStrategy) {
+                options.frameExtractionStrategy = selectedStrategy;
+              }
+            } else {
+              // 有具体的值
+              options.frameExtractionStrategy =
+                options.frameStrategy as FrameExtractionStrategy;
+            }
+            delete options.frameStrategy;
+          }
+          await this.handleMainCommand(filePath, options as CommandOptions);
+        },
+      );
 
     // 添加配置子命令
     this.program
@@ -101,6 +135,7 @@ class FrameSenseCLI {
     options: CommandOptions,
   ) {
     try {
+      // 测试进度条动画
       if (options.testSpinner) {
         progressLogger.startProgress("加载中...");
         await new Promise((r) => setTimeout(r, 100000000));
@@ -213,16 +248,27 @@ class FrameSenseCLI {
         customPrompt?: string;
       } = {};
 
-      if (options.api) configUpdates.api = options.api;
-      if (options.batchSize) configUpdates.batchSize = options.batchSize;
-      if (options.filenameLength !== undefined)
+      if (options.api) {
+        configUpdates.api = options.api;
+      }
+      if (options.batchSize) {
+        configUpdates.batchSize = options.batchSize;
+      }
+      if (options.filenameLength !== undefined) {
         configUpdates.filenameLength = options.filenameLength;
-      if (options.customPrompt !== undefined)
+      }
+
+      if (options.customPrompt !== undefined) {
         configUpdates.customPrompt = options.customPrompt;
+      }
 
       if (Object.keys(configUpdates).length > 0) {
-        await interactiveConfig(configUpdates);
-        UIUtils.logSuccess("配置已更新");
+        const success = await interactiveConfig(configUpdates);
+        if (success) {
+          UIUtils.logSuccess("配置已更新");
+        } else {
+          UIUtils.logError("配置更新失败");
+        }
       }
 
       // 显示配置信息
@@ -248,6 +294,11 @@ class FrameSenseCLI {
 
     if (options.batchSize !== undefined && options.batchSize > 0) {
       updates.batchSize = options.batchSize;
+    }
+
+    // 直接应用 frameExtractionStrategy 到配置，而不通过 interactiveConfig
+    if (options.frameExtractionStrategy !== undefined) {
+      this.config.setFrameExtractionStrategy(options.frameExtractionStrategy);
     }
 
     if (Object.keys(updates).length > 0) {
