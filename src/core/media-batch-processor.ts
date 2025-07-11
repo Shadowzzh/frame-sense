@@ -3,6 +3,7 @@
  * 统一处理图片和视频的批量分析，支持混合批次处理
  */
 
+import { basename, dirname, join } from "node:path";
 import { AIBatchProcessor } from "@/core/ai-analyzer";
 import { getConfigManager } from "@/core/config";
 import { ImageProcessor } from "@/core/image-processor";
@@ -12,6 +13,7 @@ import type {
   MediaBatchItem,
   MediaBatchResult,
   MixedBatchStats,
+  RenameResult,
 } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
 import { progressLogger } from "@/utils/progress-logger";
@@ -65,16 +67,74 @@ export class MediaBatchProcessor {
     const mixedBatches = this.createMixedBatches(mediaBatchItems);
     progressLogger.debug(`创建 ${mixedBatches.length} 个混合批次进行AI分析`);
 
-    // 第三步：批量AI分析
-    const analysisResults = await this.batchAnalyzeFrames(
+    // 第三步：增量处理 - AI分析 → 立即处理结果
+    const results = await this.incrementalProcessBatches(
       mixedBatches,
       userPrompt,
     );
 
-    // 第四步：映射结果
-    const results = this.mapResultsToOriginalFiles(
-      mediaBatchItems,
-      analysisResults,
+    const endTime = Date.now();
+
+    // 统计信息
+    const stats = this.calculateStats(
+      results,
+      filePaths,
+      frameExtractionTime,
+      endTime - startTime,
+    );
+
+    progressLogger.info(
+      `批量处理完成: ${stats.successfulFiles}/${stats.totalFiles} 成功`,
+    );
+
+    return { results, stats };
+  }
+
+  /**
+   * 批量处理并重命名媒体文件（新增量处理版本）
+   * @param filePaths - 文件路径列表
+   * @param userPrompt - 用户提示词
+   * @param outputDir - 输出目录
+   * @param preview - 是否预览模式
+   * @returns 批量处理结果
+   */
+  public async batchProcessAndRename(
+    filePaths: string[],
+    userPrompt?: string,
+    outputDir?: string,
+    preview = false,
+  ): Promise<{
+    results: MediaBatchResult[];
+    stats: MixedBatchStats;
+  }> {
+    const startTime = Date.now();
+
+    progressLogger.info(
+      `📁 开始批量处理并重命名 ${filePaths.length} 个媒体文件${outputDir ? ` (输出到: ${outputDir})` : ""}`,
+    );
+
+    // 第一步：预处理文件，提取帧
+    const frameExtractionStart = Date.now();
+    progressLogger.startProgress("预处理文件，提取帧...");
+
+    const mediaBatchItems = await this.preprocessFiles(filePaths);
+    const frameExtractionTime = Date.now() - frameExtractionStart;
+
+    progressLogger.succeedProgress(
+      `帧提取完成，耗时 ${frameExtractionTime / 1000} 秒`,
+    );
+    progressLogger.debug(`总共准备 ${mediaBatchItems.length} 个处理项`);
+
+    // 第二步：创建混合批次
+    const mixedBatches = this.createMixedBatches(mediaBatchItems);
+    progressLogger.debug(`创建 ${mixedBatches.length} 个混合批次进行增量处理`);
+
+    // 第三步：增量处理 - AI分析 → 立即重命名
+    const results = await this.incrementalProcessBatches(
+      mixedBatches,
+      userPrompt,
+      outputDir,
+      preview,
     );
 
     const endTime = Date.now();
@@ -218,12 +278,14 @@ export class MediaBatchProcessor {
   }
 
   /**
-   * 批量分析帧
+   * 增量处理批次：AI分析一批立即处理结果
    * @param mixedBatches - 混合批次列表
    * @param userPrompt - 用户提示词
-   * @returns 分析结果映射
+   * @param outputDir - 输出目录
+   * @param preview - 是否预览模式
+   * @returns 处理结果列表
    */
-  private async batchAnalyzeFrames(
+  private async incrementalProcessBatches(
     mixedBatches: {
       framePaths: string[];
       itemMappings: Array<{
@@ -233,102 +295,293 @@ export class MediaBatchProcessor {
       }>;
     }[],
     userPrompt?: string,
-  ): Promise<Map<string, AnalysisResult[]>> {
-    const analysisResults = new Map<string, AnalysisResult[]>();
+    outputDir?: string,
+    preview = false,
+  ): Promise<MediaBatchResult[]> {
+    const allResults: MediaBatchResult[] = [];
+    const completedFiles = new Set<string>();
 
     const totalFrames = mixedBatches.reduce(
       (sum, batch) => sum + batch.framePaths.length,
       0,
     );
 
-    progressLogger.debug(
-      `开始分析 ${mixedBatches.length} 个混合批次，共 ${totalFrames} 帧`,
+    progressLogger.info(
+      `开始处理：${mixedBatches.length} 个批次，共 ${totalFrames} 帧 (每批次分析完立即重命名)`,
     );
 
-    progressLogger.startProgress("AI分析批次...");
+    progressLogger.startProgress("增量处理批次...");
 
     for (let i = 0; i < mixedBatches.length; i++) {
       const batch = mixedBatches[i];
 
       // 更新进度显示当前进度
       progressLogger.updateProgress(
-        `AI分析批次 (${i + 1}/${mixedBatches.length}): 每次 ${batch.framePaths.length} 张`,
+        `批次 ${i + 1}/${mixedBatches.length}: AI分析 ${batch.framePaths.length} 张图片...`,
       );
 
       try {
-        // 使用现有的 AI 批量处理器
+        // 步骤1：AI分析当前批次
         const batchResult = await this.aiBatchProcessor.smartBatchProcess(
           batch.framePaths,
           userPrompt,
         );
 
-        // 将结果映射到原始文件
-        for (let j = 0; j < batchResult.results.length; j++) {
-          const result = batchResult.results[j];
-          const mapping = batch.itemMappings[j];
+        // 步骤2：立即处理当前批次的结果
+        const batchResults = await this.processBatchResults(
+          batch,
+          batchResult.results,
+          outputDir,
+          preview,
+          completedFiles,
+        );
 
-          if (mapping) {
-            const originalPath = mapping.batchItem.originalPath;
+        allResults.push(...batchResults);
 
-            if (!analysisResults.has(originalPath)) {
-              analysisResults.set(originalPath, []);
-            }
-
-            // 更新结果的原始路径
-            const updatedResult = {
-              ...result,
-              originalPath,
-            };
-
-            analysisResults.get(originalPath)?.push(updatedResult);
-          }
-        }
-
+        progressLogger.updateProgress(
+          `批次 ${i + 1}/${mixedBatches.length}: 完成重命名 ${batchResults.length} 个文件`,
+        );
         progressLogger.debug(
-          `批次 ${i + 1}/${mixedBatches.length} 完成，处理了 ${batch.framePaths.length} 帧`,
+          `批次 ${i + 1}/${mixedBatches.length} 完成，处理了 ${batch.framePaths.length} 帧，完成 ${batchResults.length} 个文件`,
         );
       } catch (error) {
-        progressLogger.error(`批次 ${i + 1} 分析失败: ${error}`);
+        progressLogger.error(`批次 ${i + 1} 处理失败: ${error}`);
+
+        // 处理失败的批次，创建失败结果
+        const failedResults = this.createFailedResults(batch, error);
+        allResults.push(...failedResults);
       }
     }
 
-    progressLogger.succeedProgress("AI分析完成");
-    return analysisResults;
+    progressLogger.succeedProgress("增量处理完成");
+    return allResults;
   }
 
   /**
-   * 将分析结果映射到原始文件
-   * @param mediaBatchItems - 媒体批次项列表
-   * @param analysisResults - 分析结果映射
-   * @returns 媒体批量处理结果
+   * 处理单个批次的结果：分析完成后立即重命名
+   * @param batch - 批次数据
+   * @param analysisResults - AI分析结果
+   * @param outputDir - 输出目录
+   * @param preview - 是否预览模式
+   * @param completedFiles - 已完成的文件集合
+   * @returns 处理结果
    */
-  private mapResultsToOriginalFiles(
-    mediaBatchItems: MediaBatchItem[],
-    analysisResults: Map<string, AnalysisResult[]>,
+  private async processBatchResults(
+    batch: {
+      framePaths: string[];
+      itemMappings: Array<{
+        frameIndex: number;
+        batchItem: MediaBatchItem;
+        framePathIndex: number;
+      }>;
+    },
+    analysisResults: AnalysisResult[],
+    outputDir?: string,
+    preview = false,
+    completedFiles?: Set<string>,
+  ): Promise<MediaBatchResult[]> {
+    const results: MediaBatchResult[] = [];
+    const fileResultsMap = new Map<string, AnalysisResult[]>();
+
+    // 将分析结果映射到原始文件
+    for (let j = 0; j < analysisResults.length; j++) {
+      const result = analysisResults[j];
+      const mapping = batch.itemMappings[j];
+
+      if (mapping) {
+        const originalPath = mapping.batchItem.originalPath;
+
+        // 跳过已完成的文件
+        if (completedFiles?.has(originalPath)) {
+          continue;
+        }
+
+        if (!fileResultsMap.has(originalPath)) {
+          fileResultsMap.set(originalPath, []);
+        }
+
+        // 更新结果的原始路径
+        const updatedResult = {
+          ...result,
+          originalPath,
+        };
+
+        fileResultsMap.get(originalPath)?.push(updatedResult);
+      }
+    }
+
+    // 为每个文件执行重命名
+    for (const [originalPath, frameResults] of fileResultsMap) {
+      if (frameResults.length > 0) {
+        const batchItem = batch.itemMappings.find(
+          (m) => m.batchItem.originalPath === originalPath,
+        )?.batchItem;
+
+        if (batchItem) {
+          // 使用第一个帧的分析结果作为文件的分析结果
+          const primaryResult = frameResults[0];
+
+          try {
+            // 执行重命名
+            const renameResult = await this.renameFile(
+              batchItem,
+              primaryResult,
+              outputDir,
+              preview,
+            );
+
+            results.push({
+              batchItem,
+              analysisResult: primaryResult,
+              success: renameResult.success,
+              error: renameResult.error,
+              newPath: renameResult.newPath,
+            });
+
+            // 标记为已完成
+            completedFiles?.add(originalPath);
+
+            if (renameResult.success) {
+              progressLogger.info(
+                `✓ ${preview ? "预览" : "重命名"}: ${basename(originalPath)} → ${basename(renameResult.newPath)}`,
+              );
+            } else {
+              progressLogger.warn(
+                `✗ ${preview ? "预览" : "重命名"}失败: ${basename(originalPath)} - ${renameResult.error}`,
+              );
+            }
+          } catch (error) {
+            results.push({
+              batchItem,
+              analysisResult: primaryResult,
+              success: false,
+              error: error instanceof Error ? error.message : "重命名失败",
+              newPath: batchItem.originalPath, // 失败时新路径等于原路径
+            });
+
+            progressLogger.error(
+              `重命名失败: ${basename(originalPath)} - ${error}`,
+            );
+          }
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * 重命名单个文件
+   * @param batchItem - 批次项
+   * @param analysisResult - 分析结果
+   * @param outputDir - 输出目录
+   * @param preview - 是否预览模式
+   * @returns 重命名结果
+   */
+  private async renameFile(
+    batchItem: MediaBatchItem,
+    analysisResult: AnalysisResult,
+    outputDir?: string,
+    preview = false,
+  ): Promise<RenameResult> {
+    const fileInfo = FileUtils.getFileInfo(batchItem.originalPath);
+    if (!fileInfo) {
+      throw new Error(`无法获取文件信息: ${batchItem.originalPath}`);
+    }
+
+    // 生成新的文件路径
+    const targetDir = outputDir || dirname(batchItem.originalPath);
+    const newFilePath = this.generateNewFilePath(
+      targetDir,
+      analysisResult.suggestedName,
+      fileInfo.extension,
+    );
+
+    // 如果是预览模式，不执行实际重命名
+    if (preview) {
+      return {
+        originalPath: batchItem.originalPath,
+        newPath: newFilePath,
+        success: true,
+        analysisResult,
+      };
+    }
+
+    // 执行重命名
+    let success: boolean;
+    if (outputDir && outputDir !== dirname(batchItem.originalPath)) {
+      // 如果指定了输出目录且与原文件目录不同，则复制文件
+      success = FileUtils.copyFile(batchItem.originalPath, newFilePath);
+    } else {
+      // 否则移动文件
+      success = FileUtils.renameFile(batchItem.originalPath, newFilePath);
+    }
+
+    return {
+      originalPath: batchItem.originalPath,
+      newPath: newFilePath,
+      success,
+      analysisResult,
+      error: success ? undefined : "重命名失败",
+    };
+  }
+
+  /**
+   * 生成新的文件路径
+   * @param targetDir - 目标目录
+   * @param suggestedName - 建议的文件名
+   * @param extension - 文件扩展名
+   * @returns 新文件路径
+   */
+  private generateNewFilePath(
+    targetDir: string,
+    suggestedName: string,
+    extension: string,
+  ): string {
+    const uniqueName = FileUtils.generateUniqueFilename(
+      targetDir,
+      suggestedName,
+      extension,
+    );
+    return join(targetDir, `${uniqueName}.${extension}`);
+  }
+
+  /**
+   * 创建失败结果
+   * @param batch - 批次数据
+   * @param error - 错误信息
+   * @returns 失败结果列表
+   */
+  private createFailedResults(
+    batch: {
+      framePaths: string[];
+      itemMappings: Array<{
+        frameIndex: number;
+        batchItem: MediaBatchItem;
+        framePathIndex: number;
+      }>;
+    },
+    error: unknown,
   ): MediaBatchResult[] {
     const results: MediaBatchResult[] = [];
+    const processedFiles = new Set<string>();
 
-    for (const batchItem of mediaBatchItems) {
-      const originalPath = batchItem.originalPath;
-      const frameResults = analysisResults.get(originalPath) || [];
+    for (const mapping of batch.itemMappings) {
+      const originalPath = mapping.batchItem.originalPath;
 
-      if (frameResults.length > 0) {
-        // 对于视频，选择第一个帧的分析结果作为视频的分析结果
-        // 对于图片，直接使用唯一的分析结果
-        const primaryResult = frameResults[0];
-
-        results.push({
-          batchItem,
-          analysisResult: primaryResult,
-          success: true,
-        });
-      } else {
-        results.push({
-          batchItem,
-          success: false,
-          error: "未获得分析结果",
-        });
+      // 避免重复处理同一文件
+      if (processedFiles.has(originalPath)) {
+        continue;
       }
+
+      processedFiles.add(originalPath);
+
+      results.push({
+        batchItem: mapping.batchItem,
+        success: false,
+        error: error instanceof Error ? error.message : "处理失败",
+        newPath: mapping.batchItem.originalPath, // 失败时新路径等于原路径
+      });
     }
 
     return results;

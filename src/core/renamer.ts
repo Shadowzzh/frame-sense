@@ -135,11 +135,10 @@ export class SmartRenamer {
   }
 
   /**
-   * 批量重命名文件（新版本 - 支持视频批量处理）
+   * 批量重命名文件（新版本 - 支持增量处理）
    * @param filePaths - 文件路径列表
    * @param outputDir - 输出目录（可选）
    * @param preview - 是否仅预览
-   * @param onProgress - 进度回调
    * @returns 批量重命名结果
    */
   public async batchRenameFiles(
@@ -157,55 +156,31 @@ export class SmartRenamer {
       console.log(`开始批量重命名 ${filePaths.length} 个文件`);
     }
 
-    // 使用新的媒体批量处理器进行处理
-    const batchResult = await this.mediaBatchProcessor.batchProcessMedia(
+    // 使用新的增量处理功能：AI分析 → 立即重命名
+    const batchResult = await this.mediaBatchProcessor.batchProcessAndRename(
       filePaths,
       undefined,
+      outputDir,
+      preview,
     );
 
     // 将媒体批量处理结果转换为重命名结果
     const renameResults: RenameResult[] = [];
 
     for (const mediaResult of batchResult.results) {
-      const { batchItem, analysisResult, success, error } = mediaResult;
+      const { batchItem, analysisResult, success, error, newPath } =
+        mediaResult;
 
       if (success && analysisResult) {
-        const fileInfo = FileUtils.getFileInfo(batchItem.originalPath);
-        if (fileInfo) {
-          const targetDir = outputDir || dirname(fileInfo.path);
-          const newFilePath = this.generateNewFilePath(
-            targetDir,
-            analysisResult.suggestedName,
-            fileInfo.extension,
-          );
+        const renameResult: RenameResult = {
+          originalPath: batchItem.originalPath,
+          newPath: newPath || batchItem.originalPath, // 使用实际的新路径
+          success: true,
+          analysisResult,
+        };
 
-          let renameSuccess = true;
-          let renameError: string | undefined;
-
-          if (!preview) {
-            if (outputDir && outputDir !== dirname(fileInfo.path)) {
-              // 如果指定了输出目录且与原文件目录不同，则复制文件
-              renameSuccess = FileUtils.copyFile(fileInfo.path, newFilePath);
-            } else {
-              // 否则移动文件
-              renameSuccess = FileUtils.renameFile(fileInfo.path, newFilePath);
-            }
-            if (!renameSuccess) {
-              renameError = "重命名失败";
-            }
-          }
-
-          const renameResult: RenameResult = {
-            originalPath: fileInfo.path,
-            newPath: newFilePath,
-            success: renameSuccess,
-            analysisResult,
-            error: renameError,
-          };
-
-          renameResults.push(renameResult);
-          this.renameHistory.push(renameResult);
-        }
+        renameResults.push(renameResult);
+        this.renameHistory.push(renameResult);
       } else {
         // 处理失败的情况
         const fileInfo = FileUtils.getFileInfo(batchItem.originalPath);
@@ -226,6 +201,7 @@ export class SmartRenamer {
           };
 
           renameResults.push(renameResult);
+          this.renameHistory.push(renameResult);
         }
       }
     }
@@ -400,37 +376,5 @@ export class SmartRenamer {
     this.batchProcessor.destroy();
     this.videoProcessor.destroy();
     this.mediaBatchProcessor.destroy();
-  }
-}
-
-/**
- * 重命名策略接口
- */
-export interface RenameStrategy {
-  /**
-   * 应用重命名策略
-   * @param analysisResult - 分析结果
-   * @param originalPath - 原始文件路径
-   * @returns 新文件名
-   */
-  apply(analysisResult: AnalysisResult, originalPath: string): string;
-}
-
-/**
- * 默认重命名策略
- */
-export class DefaultRenameStrategy implements RenameStrategy {
-  apply(analysisResult: AnalysisResult, _originalPath: string): string {
-    return analysisResult.suggestedName;
-  }
-}
-
-/**
- * 时间戳重命名策略
- */
-export class TimestampRenameStrategy implements RenameStrategy {
-  apply(analysisResult: AnalysisResult): string {
-    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    return `${timestamp}_${analysisResult.suggestedName}`;
   }
 }

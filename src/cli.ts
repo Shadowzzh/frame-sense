@@ -31,7 +31,6 @@ import { UIUtils } from "@/utils/ui-utils";
 
 const envHttpProxyAgent = new EnvHttpProxyAgent();
 setGlobalDispatcher(envHttpProxyAgent);
-getSignalHandler();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -41,9 +40,7 @@ const packageJson = JSON.parse(
   readFileSync(join(__dirname, "..", "package.json"), "utf-8"),
 );
 
-/**
- * 主程序类
- */
+/** 主程序类 */
 class FrameSenseCLI {
   private program: Command;
   private config = getConfigManager();
@@ -56,6 +53,9 @@ class FrameSenseCLI {
 
   /** 运行 CLI */
   public async run() {
+    // 设置信号处理器
+    getSignalHandler();
+
     try {
       await this.program.parseAsync(process.argv);
     } catch (error) {
@@ -479,10 +479,8 @@ class FrameSenseCLI {
 }
 
 // 运行主程序
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const cli = new FrameSenseCLI();
-  cli.run().catch((error) => {
-    console.error(chalk.red("程序启动失败:"), error);
-    process.exit(1);
-  });
-}
+const cli = new FrameSenseCLI();
+cli.run().catch((error) => {
+  console.error(chalk.red("程序启动失败:"), error);
+  process.exit(1);
+});

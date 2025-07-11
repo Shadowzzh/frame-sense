@@ -220,18 +220,6 @@ export interface BatchProcessingStats {
   };
 }
 
-/** 错误类型 */
-export interface AppError {
-  /** 错误代码 */
-  code: string;
-  /** 错误消息 */
-  message: string;
-  /** 错误详情 */
-  details?: string;
-  /** 原始错误 */
-  originalError?: Error;
-}
-
 /** FFmpeg 依赖检查结果 */
 export interface DependencyCheckResult {
   /** 是否可用 */
@@ -271,6 +259,8 @@ export interface MediaBatchResult {
   success: boolean;
   /** 错误信息 */
   error?: string;
+  /** 新文件路径（重命名后） */
+  newPath?: string;
 }
 
 /** 混合批量处理统计 */
@@ -287,24 +277,6 @@ export interface MixedBatchStats extends BatchProcessingStats {
 
 /** 临时文件清理函数类型 */
 export type CleanupFunction = () => void | Promise<void>;
-
-/** 进度回调函数类型 */
-export type ProgressCallback = (
-  current: number,
-  total: number,
-  message: string,
-) => void;
-
-/** 日志级别 */
-export type LogLevel = "debug" | "info" | "warn" | "error";
-
-/** 日志记录器接口 */
-export interface Logger {
-  debug(message: string, ...args: unknown[]): void;
-  info(message: string, ...args: unknown[]): void;
-  warn(message: string, ...args: unknown[]): void;
-  error(message: string, ...args: unknown[]): void;
-}
 
 /** 环境变量类型定义 */
 declare global {

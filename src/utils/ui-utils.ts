@@ -48,26 +48,6 @@ export class UIUtils {
   }
 
   /**
-   * 记录调试消息
-   * @param message - 消息内容
-   */
-  static logDebug(message: string): void {
-    console.log(chalk.gray("🔍"), message);
-  }
-
-  /**
-   * 格式化文件信息
-   * @param path - 文件路径
-   * @param size - 文件大小
-   * @returns 格式化的文件信息
-   */
-  static formatFileInfo(path: string, size: number): string {
-    const fileName = path.split("/").pop() || path;
-    const formattedSize = FileUtils.formatFileSize(size);
-    return `${chalk.cyan(fileName)} ${chalk.gray(`(${formattedSize})`)}`;
-  }
-
-  /**
    * 打印分析结果
    * @param results - 分析结果列表
    */
@@ -290,13 +270,6 @@ export class UIUtils {
   }
 
   /**
-   * 清除当前行
-   */
-  static clearLine(): void {
-    process.stdout.write(`\r${" ".repeat(process.stdout.columns || 80)}\r`);
-  }
-
-  /**
    * 打印依赖检查结果
    * @param deps - 依赖检查结果
    */
@@ -359,123 +332,6 @@ export class UIUtils {
   }
 
   /**
-   * 打印帮助信息
-   */
-  static printHelp(): void {
-    console.log(chalk.bold("\n🎯 Frame Sense - 智能媒体文件重命名工具"));
-    console.log("─".repeat(60));
-    console.log();
-
-    console.log(chalk.bold("用法:"));
-    console.log("  frame-sense [选项] <文件路径>");
-    console.log("  fren [选项] <文件路径>");
-    console.log();
-
-    console.log(chalk.bold("选项:"));
-    console.log(
-      `  ${chalk.cyan("-d, --directory")}     分析整个目录中的媒体文件`,
-    );
-    console.log(`  ${chalk.cyan("-t, --test")}          测试 AI API 连接`);
-    console.log(
-      `  ${chalk.cyan("-p, --preview")}       预览重命名结果，不实际执行`,
-    );
-    console.log(`  ${chalk.cyan("-o, --output <dir>")}  指定输出目录`);
-    console.log(`  ${chalk.cyan("-b, --batch <size>")}  设置批量处理大小`);
-    console.log(
-      `  ${chalk.cyan("--filename-length <length>")}  设置文件名字数长度限制`,
-    );
-    console.log(
-      `  ${chalk.cyan("--custom-prompt <template>")}  设置自定义 prompt 模板`,
-    );
-    console.log(
-      `  ${chalk.cyan("--verbose")}           启用详细输出和调试模式`,
-    );
-    console.log(`  ${chalk.cyan("--config <file>")}     指定配置文件路径`);
-    console.log(`  ${chalk.cyan("-h, --help")}          显示帮助信息`);
-    console.log(`  ${chalk.cyan("-v, --version")}       显示版本信息`);
-    console.log();
-
-    console.log(chalk.bold("示例:"));
-    console.log(`  ${chalk.gray("# 重命名单个文件")}`);
-    console.log(`  frame-sense photo.jpg`);
-    console.log();
-
-    console.log(`  ${chalk.gray("# 分析整个目录")}`);
-    console.log(`  frame-sense -d /path/to/images`);
-    console.log();
-
-    console.log(`  ${chalk.gray("# 预览重命名结果")}`);
-    console.log(`  frame-sense -p -d /path/to/videos`);
-    console.log();
-
-    console.log(`  ${chalk.gray("# 测试 API 连接")}`);
-    console.log(`  frame-sense -t`);
-    console.log();
-
-    console.log(`  ${chalk.gray("# 设置文件名长度限制")}`);
-    console.log(`  frame-sense --filename-length 20 photo.jpg`);
-    console.log();
-
-    console.log(`  ${chalk.gray("# 使用自定义 prompt 模板")}`);
-    console.log(
-      `  frame-sense --custom-prompt "请生成不超过{{filenameLength}}字符的英文文件名" video.mp4`,
-    );
-    console.log();
-
-    console.log(chalk.bold("配置管理:"));
-    console.log(`  ${chalk.gray("# 永久设置文件名长度")}`);
-    console.log(`  frame-sense config --filename-length 25`);
-    console.log();
-
-    console.log(`  ${chalk.gray("# 永久设置自定义模板")}`);
-    console.log(`  frame-sense config --custom-prompt "你的自定义模板内容"`);
-    console.log();
-
-    console.log(`  ${chalk.gray("# 清除自定义模板，回到默认模板")}`);
-    console.log(`  frame-sense config --custom-prompt ""`);
-    console.log();
-
-    console.log(`  ${chalk.gray("# 重置 Prompt 配置到默认值")}`);
-    console.log(`  frame-sense config --reset-prompt`);
-    console.log();
-
-    console.log(`  ${chalk.gray("# 显示当前配置")}`);
-    console.log(`  frame-sense config`);
-    console.log();
-
-    console.log(chalk.bold("环境变量:"));
-    console.log(
-      `  ${chalk.cyan("FRAME_SENSE_API_KEY")}      Google Gemini API Key`,
-    );
-    console.log(`  ${chalk.cyan("FRAME_SENSE_BATCH_SIZE")}   批量处理大小`);
-    console.log(
-      `  ${chalk.cyan("FRAME_SENSE_VERBOSE")}      启用详细输出和调试模式 (true/false)`,
-    );
-    console.log();
-
-    console.log(chalk.bold("Prompt 配置说明:"));
-    console.log(
-      `  ${chalk.gray("• 文件名长度限制：")} 控制生成文件名的字符数量 (1-100)`,
-    );
-    console.log(
-      `  ${chalk.gray("• 自定义模板：")} 只能自定义分析要求部分，JSON 格式由系统自动添加`,
-    );
-    console.log(
-      `  ${chalk.gray("• 模板变量：")} 使用 {{filenameLength}} 引用当前文件名长度设置`,
-    );
-    console.log(
-      `  ${chalk.gray("• 清除模板：")} 设置空字符串可清除自定义模板，回到默认模板`,
-    );
-    console.log(
-      `  ${chalk.gray("• 重置配置：")} 使用 --reset-prompt 重置所有 prompt 配置到默认值`,
-    );
-    console.log(
-      `  ${chalk.gray("• 优先级：")} 命令行参数 > 自定义模板 > 默认模板`,
-    );
-    console.log();
-  }
-
-  /**
    * 询问用户确认
    * @param message - 确认消息
    * @returns 用户确认结果
@@ -491,14 +347,5 @@ export class UIUtils {
         resolve(answer !== "n" && answer !== "no");
       });
     });
-  }
-
-  /**
-   * 打印分隔线
-   * @param length - 分隔线长度
-   * @param char - 分隔字符
-   */
-  static printSeparator(length = 50, char = "─"): void {
-    console.log(chalk.gray(char.repeat(length)));
   }
 }

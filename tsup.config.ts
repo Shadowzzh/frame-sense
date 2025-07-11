@@ -6,17 +6,19 @@ export default defineConfig({
   dts: true,
   clean: true,
   minify: false,
-  sourcemap: true,
+  sourcemap: false,
   target: "node18",
   outDir: "dist",
   tsconfig: "./tsconfig.json",
+  platform: "node",
+  splitting: false,
+  bundle: true,
+  external: ["sharp"],
   esbuildOptions(options) {
-    // 支持路径别名
     options.alias = {
       "@": "./src",
     };
-  },
-  banner: {
-    js: "#!/usr/bin/env node\n",
+    // 强制使用 ESM 格式
+    options.format = "esm";
   },
 });

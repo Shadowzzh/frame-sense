@@ -429,46 +429,4 @@ export class VideoProcessor {
     getSignalHandler().removeCleanupFunction(this.cleanupFunction);
     this.cleanup();
   }
-
-  /**
-   * 获取支持的视频格式
-   * @returns 支持的视频格式列表
-   */
-  public static getSupportedFormats(): string[] {
-    return FileUtils.getSupportedFormats().videos;
-  }
-
-  /**
-   * 批量处理视频文件
-   * @param videoPaths - 视频文件路径列表
-   * @param strategy - 提取策略
-   * @param onProgress - 进度回调
-   * @returns 处理结果列表
-   */
-  public async batchExtractFrames(
-    videoPaths: string[],
-    strategy?: FrameExtractionStrategy,
-    onProgress?: (current: number, total: number, currentFile: string) => void,
-  ): Promise<VideoFrameInfo[]> {
-    const results: VideoFrameInfo[] = [];
-    const total = videoPaths.length;
-
-    for (let i = 0; i < videoPaths.length; i++) {
-      const videoPath = videoPaths[i];
-
-      if (onProgress) {
-        onProgress(i + 1, total, videoPath);
-      }
-
-      try {
-        const frameInfo = await this.extractFrames(videoPath, strategy);
-        results.push(frameInfo);
-      } catch (error) {
-        console.error(`处理视频文件失败 ${videoPath}:`, error);
-        // 继续处理其他文件，不中断整个批量处理
-      }
-    }
-
-    return results;
-  }
 }

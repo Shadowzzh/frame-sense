@@ -291,42 +291,6 @@ export class ImageProcessor {
   }
 
   /**
-   * 批量获取图像信息
-   * @param imagePaths - 图像文件路径列表
-   * @returns 图像信息列表
-   */
-  public async batchGetImageInfo(imagePaths: string[]): Promise<
-    Array<{
-      path: string;
-      width: number;
-      height: number;
-      format: string;
-      size: number;
-      hasAlpha: boolean;
-    }>
-  > {
-    const results: Array<{
-      path: string;
-      width: number;
-      height: number;
-      format: string;
-      size: number;
-      hasAlpha: boolean;
-    }> = [];
-
-    for (const imagePath of imagePaths) {
-      try {
-        const info = await this.getImageInfo(imagePath);
-        results.push({ path: imagePath, ...info });
-      } catch (error) {
-        console.error(`获取图像信息失败 ${imagePath}:`, error);
-      }
-    }
-
-    return results;
-  }
-
-  /**
    * 验证图像文件
    * @param imagePath - 图像文件路径
    * @returns 是否为有效图像
@@ -338,29 +302,6 @@ export class ImageProcessor {
     } catch {
       return false;
     }
-  }
-
-  /**
-   * 批量验证图像文件
-   * @param imagePaths - 图像文件路径列表
-   * @returns 验证结果
-   */
-  public async batchValidateImages(imagePaths: string[]): Promise<{
-    valid: string[];
-    invalid: string[];
-  }> {
-    const valid: string[] = [];
-    const invalid: string[] = [];
-
-    for (const imagePath of imagePaths) {
-      if (await this.validateImage(imagePath)) {
-        valid.push(imagePath);
-      } else {
-        invalid.push(imagePath);
-      }
-    }
-
-    return { valid, invalid };
   }
 
   /**
@@ -396,42 +337,5 @@ export class ImageProcessor {
     // 从信号处理器中移除清理函数
     getSignalHandler().removeCleanupFunction(this.cleanupFunction);
     this.cleanup();
-  }
-
-  /**
-   * 获取支持的图像格式
-   * @returns 支持的图像格式列表
-   */
-  public static getSupportedFormats(): string[] {
-    return FileUtils.getSupportedFormats().images;
-  }
-
-  /**
-   * 估算处理后的文件大小
-   * @param originalSize - 原始文件大小
-   * @param quality - 质量设置
-   * @param newWidth - 新宽度
-   * @param newHeight - 新高度
-   * @param originalWidth - 原始宽度
-   * @param originalHeight - 原始高度
-   * @returns 估算的文件大小
-   */
-  public static estimateProcessedSize(
-    originalSize: number,
-    quality: number,
-    newWidth: number,
-    newHeight: number,
-    originalWidth: number,
-    originalHeight: number,
-  ): number {
-    // 计算像素比例
-    const pixelRatio =
-      (newWidth * newHeight) / (originalWidth * originalHeight);
-
-    // 计算质量影响
-    const qualityFactor = quality / 100;
-
-    // 估算新文件大小
-    return Math.round(originalSize * pixelRatio * qualityFactor);
   }
 }
