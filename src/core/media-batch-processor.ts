@@ -17,6 +17,7 @@ import type {
 } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
 import { progressLogger } from "@/utils/progress-logger";
+import { TemplateResolver } from "@/utils/template-resolver";
 
 export class MediaBatchProcessor {
   /** AI 批量处理器 */
@@ -307,7 +308,7 @@ export class MediaBatchProcessor {
     );
 
     progressLogger.info(
-      `开始处理：${mixedBatches.length} 个批次，共 ${totalFrames} 帧 (每批次分析完立即重命名)`,
+      `开始处理：${mixedBatches.length} 个批次，共 ${totalFrames} 帧`,
     );
 
     progressLogger.startProgress("增量处理批次...");
@@ -491,10 +492,11 @@ export class MediaBatchProcessor {
 
     // 生成新的文件路径
     const targetDir = outputDir || dirname(batchItem.originalPath);
-    const newFilePath = this.generateNewFilePath(
+    const newFilePath = await this.generateNewFilePath(
       targetDir,
       analysisResult.suggestedName,
       fileInfo.extension,
+      batchItem.originalPath,
     );
 
     // 如果是预览模式，不执行实际重命名
@@ -531,16 +533,34 @@ export class MediaBatchProcessor {
    * @param targetDir - 目标目录
    * @param suggestedName - 建议的文件名
    * @param extension - 文件扩展名
+   * @param originalFilePath - 原始文件路径
    * @returns 新文件路径
    */
-  private generateNewFilePath(
+  private async generateNewFilePath(
     targetDir: string,
     suggestedName: string,
     extension: string,
-  ): string {
+    originalFilePath: string,
+  ): Promise<string> {
+    const config = getConfigManager();
+    let finalName = suggestedName;
+
+    // 如果配置了文件名模板，使用模板解析
+    if (config.isFilenameTemplateEnabled()) {
+      const templateConfig = config.getFilenameTemplateConfig();
+      if (templateConfig.template) {
+        finalName = await TemplateResolver.resolveTemplate(
+          templateConfig.template,
+          suggestedName,
+          originalFilePath,
+          templateConfig,
+        );
+      }
+    }
+
     const uniqueName = FileUtils.generateUniqueFilename(
       targetDir,
-      suggestedName,
+      finalName,
       extension,
     );
     return join(targetDir, `${uniqueName}.${extension}`);

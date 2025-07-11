@@ -40,6 +40,8 @@ Frame-Sense 是一个基于 AI 的智能命令行工具，结合 FFmpeg 和 Goog
 - 🔧 **自定义配置** - 支持自定义 AI 提示词、批次大小、文件名长度
 - 📁 **输出目录** - 可指定输出目录，避免覆盖原文件
 - 🎬 **多种帧提取策略** - 支持单帧、多帧、关键帧等不同提取策略
+- 🏷️ **文件名模板** - 支持自定义文件名模板，包含前缀、日期格式等
+- 📅 **智能日期提取** - 自动从 EXIF 数据或文件系统提取日期信息
 
 ## 📦 安装
 
@@ -144,6 +146,27 @@ frame-sense config --batch-size 10
 frame-sense ./media --verbose
 ```
 
+#### 文件名模板功能
+```bash
+# 自定义前缀
+frame-sense --template '2025-11_{ai}' ./photos/
+
+# 年月日期格式
+frame-sense --template 'YYYY-MM-DD_{ai}' ./photos/
+
+# 中文日期格式
+frame-sense --template 'YYYY年MM月DD日_{ai}' ./photos/
+
+# 直接使用描述
+frame-sense --template '{desc}' ./photos/
+
+# 配置默认模板
+frame-sense config --template 'YYYY-MM_{ai}'
+
+# 查看模板示例
+frame-sense --template-examples
+```
+
 #### 系统检查
 ```bash
 # 检查 API 连接
@@ -176,6 +199,9 @@ frame-sense [文件路径] [选项]
 - `--config` - 显示当前配置信息
 - `--formats` - 显示支持的媒体格式
 - `--deps` - 检查系统依赖
+- `--template <template>` - 自定义文件名模板，支持变量替换
+- `--date-source <sources>` - 日期来源优先级，逗号分隔
+- `--template-examples` - 显示文件名模板示例
 
 
 ### 配置管理
@@ -188,8 +214,68 @@ frame-sense config [选项]
 - `--batch-size <size>` - 设置默认批量处理大小
 - `--filename-length <length>` - 设置文件名字数长度限制
 - `--custom-prompt <template>` - 设置自定义分析提示模板
+- `--template <template>` - 设置默认文件名模板
+- `--date-source <sources>` - 设置日期来源优先级
 - `--reset-prompt` - 重置提示模板到默认值
 - `--reset` - 重置所有配置到默认值
+- `--show` - 显示当前配置
+
+### 日期格式支持
+
+| 格式 | 描述 | 示例 |
+|------|------|------|
+| `YYYY-MM-DD` | 完整日期 | `2024-12-25` |
+| `YYYY-MM` | 年月格式 | `2024-12` |
+| `YYYY` | 年份 | `2024` |
+| `YYYYMMDD` | 紧凑日期 | `20241225` |
+| `MM-DD` | 月日格式 | `12-25` |
+| `YYYY年MM月DD日` | 中文日期 | `2024年12月25日` |
+
+### 模板示例
+
+```bash
+# 查看所有模板示例
+frame-sense --template-examples
+
+# 自定义前缀
+frame-sense --template '2025-11_{ai}' ./photos/
+# 结果：2025-11_美丽的日落风景.jpg
+
+# 日期 + AI 描述
+frame-sense --template 'YYYY-MM-DD_{ai}' ./photos/
+# 结果：2024-12-25_美丽的日落风景.jpg
+
+# 年月 + AI 描述
+frame-sense --template 'YYYY-MM_{ai}' ./photos/
+# 结果：2024-12_美丽的日落风景.jpg
+
+# 中文日期格式
+frame-sense --template 'YYYY年MM月DD日_{ai}' ./photos/
+# 结果：2024年12月25日_美丽的日落风景.jpg
+
+# AI 描述在前
+frame-sense --template '{ai}_YYYY-MM-DD' ./photos/
+# 结果：美丽的日落风景_2024-12-25.jpg
+```
+
+### 日期来源优先级
+
+Frame-Sense 支持从多个来源提取日期信息，按优先级顺序：
+
+1. **EXIF 数据**：从图片的 EXIF 数据中提取拍摄日期
+2. **文件创建时间**：文件系统的创建时间
+3. **文件修改时间**：文件系统的修改时间
+
+```bash
+# 设置日期来源优先级
+frame-sense --template 'YYYY-MM_{ai}' --date-source 'exif,created,modified' ./photos/
+
+# 只使用 EXIF 数据
+frame-sense --template 'YYYY-MM_{ai}' --date-source 'exif' ./photos/
+
+# 只使用文件创建时间
+frame-sense --template 'YYYY-MM_{ai}' --date-source 'created' ./photos/
+```
 
 ## ⚙️ 系统要求
 
@@ -278,6 +364,8 @@ frame-sense --config
 - **FFmpeg** - 视频处理
 - **Chalk** - 终端样式
 - **Ora** - 进度指示器
+- **Day.js** - 现代化日期处理库
+- **EXIF** - 图片元数据提取
 
 ## 🌟 致谢
 

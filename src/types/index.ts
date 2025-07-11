@@ -124,12 +124,22 @@ export interface BatchProcessOptions {
   maxConcurrency: number;
 }
 
+/** 文件名模板配置 */
+export interface FilenameTemplateConfig {
+  /** 模板字符串，支持变量替换和日期格式 */
+  template?: string;
+  /** 日期来源优先级 */
+  dateSource: ("exif" | "created" | "modified")[];
+}
+
 /** Prompt 配置选项 */
 export interface PromptConfig {
   /** 文件名字数长度限制 */
   filenameLength: number;
   /** 自定义 prompt 模板（只能自定义分析要求部分，JSON 格式部分由系统自动添加） */
   customTemplate?: string;
+  /** 文件名模板配置 */
+  filenameTemplate?: FilenameTemplateConfig;
 }
 
 /** 应用配置 */
@@ -178,6 +188,12 @@ export interface CommandOptions {
   resetPrompt?: boolean;
   /** 帧提取策略 */
   frameExtractionStrategy?: FrameExtractionStrategy;
+  /** 文件名模板 */
+  template?: string;
+  /** 日期来源 */
+  dateSource?: string;
+  /** 显示模板示例 */
+  templateExamples?: boolean;
 }
 
 /** AI 分析请求 */

@@ -8,6 +8,7 @@ import type inquirer from "inquirer";
 import type {
   AppConfig,
   BatchProcessOptions,
+  FilenameTemplateConfig,
   FrameExtractionStrategy,
   ImageProcessOptions,
   PromptConfig,
@@ -57,6 +58,10 @@ export class ConfigManager {
       promptConfig: {
         filenameLength: 20,
         customTemplate: undefined,
+        filenameTemplate: {
+          template: undefined,
+          dateSource: ["exif", "created", "modified"],
+        },
       },
       frameExtractionStrategy: "single",
       tempDirectory: FileUtils.getTempDir(),
@@ -383,7 +388,60 @@ export class ConfigManager {
     this.set("promptConfig", {
       filenameLength: this.getDefaultConfig().promptConfig.filenameLength,
       customTemplate: undefined,
+      filenameTemplate: {
+        template: undefined,
+        dateSource: ["exif", "created", "modified"],
+      },
     });
+  }
+
+  /**
+   * 获取文件名模板配置
+   * @returns 文件名模板配置
+   */
+  public getFilenameTemplateConfig(): FilenameTemplateConfig {
+    const promptConfig = this.getPromptConfig();
+    const defaultConfig = this.getDefaultConfig();
+    return (
+      promptConfig.filenameTemplate ||
+      defaultConfig.promptConfig.filenameTemplate || {
+        template: "",
+        dateSource: ["exif", "created", "modified"],
+      }
+    );
+  }
+
+  /**
+   * 设置文件名模板配置
+   * @param config - 文件名模板配置
+   */
+  public setFilenameTemplateConfig(
+    config: Partial<FilenameTemplateConfig>,
+  ): void {
+    const currentPromptConfig = this.getPromptConfig();
+    const defaultConfig = this.getDefaultConfig();
+    const currentTemplateConfig = currentPromptConfig.filenameTemplate ||
+      defaultConfig.promptConfig.filenameTemplate || {
+        template: "",
+        dateSource: ["exif", "created", "modified"],
+      };
+
+    this.setPromptConfig({
+      ...currentPromptConfig,
+      filenameTemplate: {
+        ...currentTemplateConfig,
+        ...config,
+      },
+    });
+  }
+
+  /**
+   * 检查是否启用了文件名模板
+   * @returns 是否启用了文件名模板
+   */
+  public isFilenameTemplateEnabled(): boolean {
+    const templateConfig = this.getFilenameTemplateConfig();
+    return !!templateConfig.template;
   }
 }
 
@@ -414,6 +472,8 @@ export async function interactiveConfig(options: {
   filenameLength?: number;
   customPrompt?: string;
   resetPrompt?: boolean;
+  template?: string;
+  dateSource?: string;
 }) {
   const manager = getConfigManager();
 
@@ -445,6 +505,25 @@ export async function interactiveConfig(options: {
 
     if (options.customPrompt !== undefined) {
       manager.setPromptConfig({ customTemplate: options.customPrompt });
+    }
+
+    // 设置文件名模板配置
+    if (options.template !== undefined) {
+      manager.setFilenameTemplateConfig({ template: options.template });
+    }
+
+    if (options.dateSource !== undefined) {
+      const sources = options.dateSource.split(",").map((s) => s.trim()) as (
+        | "exif"
+        | "created"
+        | "modified"
+      )[];
+      const validSources = sources.filter((s) =>
+        ["exif", "created", "modified"].includes(s),
+      );
+      if (validSources.length > 0) {
+        manager.setFilenameTemplateConfig({ dateSource: validSources });
+      }
     }
 
     // 验证配置

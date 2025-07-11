@@ -10,6 +10,7 @@ import { MediaBatchProcessor } from "@/core/media-batch-processor";
 import { VideoProcessor } from "@/core/video-processor";
 import type { AnalysisResult, MixedBatchStats, RenameResult } from "@/types";
 import { FileUtils } from "@/utils/file-utils";
+import { TemplateResolver } from "@/utils/template-resolver";
 
 export class SmartRenamer {
   /** AI 分析器 */
@@ -69,10 +70,11 @@ export class SmartRenamer {
 
       // 生成新的文件路径
       const targetDir = outputDir || dirname(filePath);
-      const newFilePath = this.generateNewFilePath(
+      const newFilePath = await this.generateNewFilePath(
         targetDir,
         analysisResult.suggestedName,
         fileInfo.extension,
+        filePath,
       );
 
       // 如果是预览模式，不执行实际重命名
@@ -275,16 +277,34 @@ export class SmartRenamer {
    * @param targetDir - 目标目录
    * @param suggestedName - 建议的文件名
    * @param extension - 文件扩展名
+   * @param originalFilePath - 原始文件路径
    * @returns 新文件路径
    */
-  private generateNewFilePath(
+  private async generateNewFilePath(
     targetDir: string,
     suggestedName: string,
     extension: string,
-  ): string {
+    originalFilePath: string,
+  ): Promise<string> {
+    const config = getConfigManager();
+    let finalName = suggestedName;
+
+    // 如果配置了文件名模板，使用模板解析
+    if (config.isFilenameTemplateEnabled()) {
+      const templateConfig = config.getFilenameTemplateConfig();
+      if (templateConfig.template) {
+        finalName = await TemplateResolver.resolveTemplate(
+          templateConfig.template,
+          suggestedName,
+          originalFilePath,
+          templateConfig,
+        );
+      }
+    }
+
     const uniqueName = FileUtils.generateUniqueFilename(
       targetDir,
-      suggestedName,
+      finalName,
       extension,
     );
     return join(targetDir, `${uniqueName}.${extension}`);

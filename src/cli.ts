@@ -27,6 +27,7 @@ import { VideoProcessor } from "@/core/video-processor";
 import { FileUtils } from "@/utils/file-utils";
 import { progressLogger } from "@/utils/progress-logger";
 import { getSignalHandler, SignalHandler } from "@/utils/signal-handler";
+import { TemplateResolver } from "@/utils/template-resolver";
 import { UIUtils } from "@/utils/ui-utils";
 
 const envHttpProxyAgent = new EnvHttpProxyAgent();
@@ -84,11 +85,20 @@ class FrameSenseCLI {
         "-f, --frame-strategy [strategy]",
         "设置帧提取策略 (single|multiple|keyframes)，不带值时进入交互选择",
       )
+      .option(
+        "--template <template>",
+        "自定义文件名模板，支持变量替换 (如: '2025-11_{ai}' 或 'YYYY-MM-DD_{ai}')",
+      )
+      .option(
+        "--date-source <sources>",
+        "日期来源优先级，逗号分隔 (exif,created,modified)",
+      )
       .option("--test-spinner", "测试进度条动画")
       .option("-v, --verbose", "启用详细输出和调试模式")
       .option("--config", "显示配置信息")
       .option("--formats", "显示支持的格式")
       .option("--deps", "检查依赖")
+      .option("--template-examples", "显示文件名模板示例")
       .action(
         async (
           filePath: string | undefined,
@@ -122,8 +132,11 @@ class FrameSenseCLI {
       .option("--batch-size <size>", "设置批量处理大小", parseInt)
       .option("--filename-length <length>", "设置文件名字数长度限制", parseInt)
       .option("--custom-prompt <template>", "设置自定义 prompt 模板")
+      .option("--template <template>", "设置文件名模板")
+      .option("--date-source <sources>", "设置日期来源")
       .option("--reset-prompt", "重置 prompt 配置到默认值")
       .option("--reset", "重置配置到默认值")
+      .option("--show", "显示当前配置")
       .action(async (options) => {
         await this.handleSubCommand(options);
       });
@@ -154,6 +167,12 @@ class FrameSenseCLI {
       if (options.deps) {
         const deps = VideoProcessor.checkDependencies();
         UIUtils.printDependencyCheck(deps);
+        return;
+      }
+
+      // 显示模板示例
+      if (options.templateExamples) {
+        this.printTemplateExamples();
         return;
       }
 
@@ -216,6 +235,8 @@ class FrameSenseCLI {
     batchSize?: number;
     filenameLength?: number;
     customPrompt?: string;
+    template?: string;
+    dateSource?: string;
   }) {
     try {
       // 重置配置
@@ -240,12 +261,20 @@ class FrameSenseCLI {
         return;
       }
 
+      // 处理显示配置
+      if (options.show) {
+        UIUtils.printConfigInfo(this.config.getConfig());
+        return;
+      }
+
       // 设置配置项
       const configUpdates: {
         api?: string;
         batchSize?: number;
         filenameLength?: number;
         customPrompt?: string;
+        template?: string;
+        dateSource?: string;
       } = {};
 
       if (options.api) {
@@ -257,9 +286,14 @@ class FrameSenseCLI {
       if (options.filenameLength !== undefined) {
         configUpdates.filenameLength = options.filenameLength;
       }
-
       if (options.customPrompt !== undefined) {
         configUpdates.customPrompt = options.customPrompt;
+      }
+      if (options.template !== undefined) {
+        configUpdates.template = options.template;
+      }
+      if (options.dateSource !== undefined) {
+        configUpdates.dateSource = options.dateSource;
       }
 
       if (Object.keys(configUpdates).length > 0) {
@@ -286,6 +320,8 @@ class FrameSenseCLI {
     const updates: {
       verbose?: boolean;
       batchSize?: number;
+      template?: string;
+      dateSource?: string;
     } = {};
 
     if (options.verbose !== undefined) {
@@ -294,6 +330,15 @@ class FrameSenseCLI {
 
     if (options.batchSize !== undefined && options.batchSize > 0) {
       updates.batchSize = options.batchSize;
+    }
+
+    // 处理文件名模板选项
+    if (options.template !== undefined) {
+      updates.template = options.template;
+    }
+
+    if (options.dateSource !== undefined) {
+      updates.dateSource = options.dateSource;
     }
 
     // 直接应用 frameExtractionStrategy 到配置，而不通过 interactiveConfig
@@ -475,6 +520,87 @@ class FrameSenseCLI {
       this.renamer = new SmartRenamer();
     }
     return this.renamer;
+  }
+
+  /** 显示模板示例 */
+  private printTemplateExamples(): void {
+    UIUtils.printHeader("文件名模板示例");
+
+    console.log(chalk.cyan("📋 可用变量:"));
+    console.log("  {ai}           - AI 分析的文件内容描述");
+    console.log("");
+
+    console.log(chalk.cyan("📅 日期格式:"));
+    console.log("  YYYY-MM-DD  - 完整日期 (如: 2024-12-25)");
+    console.log("  YYYY-MM     - 年月格式 (如: 2024-12)");
+    console.log("  YYYY        - 年份 (如: 2024)");
+    console.log("  YYYYMMDD    - 紧凑日期 (如: 20241225)");
+    console.log("  MM-DD       - 月日格式 (如: 12-25)");
+    console.log("  YYYY年MM月DD日 - 中文日期");
+    console.log("");
+    console.log(chalk.cyan("⏰ 时间格式:"));
+    console.log("  HH-mm-ss    - 时分秒格式 (如: 14-30-45)");
+    console.log("  HH-mm       - 时分格式 (如: 14-30)");
+    console.log("  HHmmss      - 紧凑时间 (如: 143045)");
+    console.log("  HH时mm分ss秒 - 中文时间");
+    console.log("");
+    console.log(chalk.cyan("🕒 日期时间组合:"));
+    console.log("  YYYY-MM-DD_HH-mm-ss  - 完整日期时间");
+    console.log("  YYYYMMDD_HHmmss      - 紧凑日期时间");
+    console.log("  YYYY年MM月DD日HH时mm分 - 中文日期时间");
+    console.log("");
+
+    console.log(chalk.cyan("🚀 模板示例:"));
+    const examples = TemplateResolver.getTemplateExamples();
+
+    for (const example of examples) {
+      console.log(chalk.green(`  ${example.name}:`));
+      console.log(`    模板: ${chalk.yellow(example.template)}`);
+      console.log(`    说明: ${example.description}`);
+    }
+
+    console.log(chalk.cyan("💡 使用方法:"));
+    console.log("  # 自定义前缀");
+    console.log(
+      `  ${chalk.gray("frame-sense --template '2025-11_{ai}' ./photos/")}`,
+    );
+    console.log("  # 日期模板");
+    console.log(
+      `  ${chalk.gray("frame-sense --template 'YYYY-MM_{ai}' ./photos/")}`,
+    );
+    console.log("  # 中文日期格式");
+    console.log(
+      `  ${chalk.gray("frame-sense --template 'YYYY年MM月DD日_{ai}' ./photos/")}`,
+    );
+    console.log("  # 紧凑格式");
+    console.log(
+      `  ${chalk.gray("frame-sense --template 'YYYYMMDD_{ai}' ./photos/")}`,
+    );
+    console.log("  # AI 内容在前");
+    console.log(
+      `  ${chalk.gray("frame-sense --template '{ai}_YYYY-MM-DD' ./photos/")}`,
+    );
+    console.log("  # 纯 AI 内容");
+    console.log(`  ${chalk.gray("frame-sense --template '{ai}' ./photos/")}`);
+    console.log("");
+    console.log("  # 日期时间格式");
+    console.log(
+      `  ${chalk.gray("frame-sense --template 'YYYY-MM-DD_HH-mm-ss_{ai}' ./photos/")}`,
+    );
+    console.log("  # 紧凑时间格式");
+    console.log(
+      `  ${chalk.gray("frame-sense --template 'YYYYMMDD_HHmmss_{ai}' ./photos/")}`,
+    );
+    console.log("  # 中文时间格式");
+    console.log(
+      `  ${chalk.gray("frame-sense --template 'YYYY年MM月DD日HH时mm分_{ai}' ./photos/")}`,
+    );
+    console.log("");
+    console.log(chalk.cyan("💡 配置持久化:"));
+    console.log("  可通过配置文件设置默认模板，避免每次都输入命令行参数");
+    console.log(
+      `  ${chalk.gray("frame-sense config --template 'YYYY-MM_{ai}'")}`,
+    );
   }
 }
 

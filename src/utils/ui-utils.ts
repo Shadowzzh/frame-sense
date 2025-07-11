@@ -242,6 +242,18 @@ export class UIUtils {
       console.log(`  ${chalk.gray("模板预览:")} ${chalk.dim(preview)}`);
     }
 
+    // 文件名模板配置
+    if (config.promptConfig.filenameTemplate) {
+      const templateConfig = config.promptConfig.filenameTemplate;
+      console.log(chalk.bold("\n文件名模板:"));
+      console.log(
+        `  ${chalk.gray("模板:")} ${chalk.cyan(templateConfig.template || "未设置")}`,
+      );
+      console.log(
+        `  ${chalk.gray("日期来源:")} ${chalk.cyan(templateConfig.dateSource.join(", "))}`,
+      );
+    }
+
     // 其他设置
     console.log(chalk.bold("\n其他:"));
     console.log(

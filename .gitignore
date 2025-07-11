@@ -34,3 +34,4 @@ Thumbs.db
 docs/
 task/
 .claude/
+*.tgz
