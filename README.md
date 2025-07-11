@@ -2,14 +2,20 @@
 
 <div align="center">
 
+
 [![npm](https://img.shields.io/npm/v/@zhangziheng/frame-sense)](https://www.npmjs.com/package/@zhangziheng/frame-sense)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.7.2-blue)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+
 🎯 **智能媒体文件重命名工具** - 基于 AI 的视频和图片文件自动语义化命名
+<br/>
+<br/>
+<img src="assets/preview.webp" alt="Frame-Sense Hero" width="600" style="border-radius: 12px;" />
 
 </div>
+
 
 Frame-Sense 是一个基于 AI 的智能命令行工具，结合 FFmpeg 和 Google Gemini AI 模型，自动分析视频和图片内容，生成语义化的文件名。支持批量处理、混合媒体类型处理，让文件管理变得更加智能和高效。
 
