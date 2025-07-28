@@ -1,6 +1,6 @@
 {
   "name": "@zhangziheng/frame-sense",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "一个图像识别模型的命令行工具，用于为视频和图片文件生成语义化文件名。",
   "main": "dist/cli.js",
   "type": "module",
