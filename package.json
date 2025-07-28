@@ -1,6 +1,6 @@
 {
   "name": "@zhangziheng/frame-sense",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "一个图像识别模型的命令行工具，用于为视频和图片文件生成语义化文件名。",
   "main": "dist/cli.js",
   "type": "module",
@@ -14,9 +14,9 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "tsx src/cli.ts",
+    "dev": "NODE_OPTIONS=\"--disable-deprecated-warnings\" tsx src/cli.ts",
     "build": "tsup",
-    "start": "node dist/cli.js",
+    "start": "NODE_OPTIONS=\"--disable-deprecated-warnings\" node dist/cli.js",
     "lint": "biome check . ",
     "lint:fix": "biome check --fix .",
     "format": "biome format --write .",
@@ -88,7 +88,7 @@
     "@types/node": "^22.10.1",
     "@types/sharp": "^0.31.1",
     "conventional-changelog-cli": "^5.0.0",
-    "tsup": "^8.3.5",
+    "tsup": "^8.5.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   },
